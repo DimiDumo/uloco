@@ -283,6 +283,56 @@
             opacity: 1;
             pointer-events: all;
         }
+
+        /* Content reveal area */
+        .content-reveal {
+            position: fixed;
+            top: 64%;
+            left: 50%;
+            transform: translate(-50%, 0);
+            z-index: 200;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .content-reveal.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .content-title {
+            display: none; /* Hidden - particles form the title */
+        }
+
+        .content-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .content-list li {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.25rem;
+            color: #4a5568;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(74, 85, 104, 0.1);
+            opacity: 0;
+            transform: translateY(40px);
+        }
+
+        .content-list li:last-child {
+            border-bottom: none;
+        }
+
+        .content-list li a {
+            color: #4a5568;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .content-list li a:hover {
+            color: #1a202c;
+        }
     </style>
 </head>
 <body>
@@ -361,6 +411,58 @@
 
     <div id="text-display">
         <canvas id="text-canvas"></canvas>
+    </div>
+
+    <!-- Content reveal areas for each category -->
+    <div class="content-reveal" id="content-books">
+        <h2 class="content-title">Books</h2>
+        <ul class="content-list">
+            <li>The Pragmatic Programmer</li>
+            <li>Clean Code</li>
+            <li>Design Patterns</li>
+            <li>Structure and Interpretation of Computer Programs</li>
+            <li>The Art of Computer Programming</li>
+        </ul>
+    </div>
+
+    <div class="content-reveal" id="content-bits">
+        <h2 class="content-title">Bits</h2>
+        <ul class="content-list">
+            <li>Open Source Projects</li>
+            <li>Code Snippets</li>
+            <li>Developer Tools</li>
+            <li>Technical Writing</li>
+        </ul>
+    </div>
+
+    <div class="content-reveal" id="content-arts">
+        <h2 class="content-title">Arts</h2>
+        <ul class="content-list">
+            <li>Digital Illustrations</li>
+            <li>Photography</li>
+            <li>Graphic Design</li>
+            <li>Creative Projects</li>
+        </ul>
+    </div>
+
+    <div class="content-reveal" id="content-thoughts">
+        <h2 class="content-title">Thoughts</h2>
+        <ul class="content-list">
+            <li>Blog Posts</li>
+            <li>Essays</li>
+            <li>Reflections</li>
+            <li>Ideas</li>
+        </ul>
+    </div>
+
+    <div class="content-reveal" id="content-sounds">
+        <h2 class="content-title">Sounds</h2>
+        <ul class="content-list">
+            <li>Music Production</li>
+            <li>Podcasts</li>
+            <li>Audio Projects</li>
+            <li>Playlists</li>
+        </ul>
     </div>
 
     <script>
@@ -513,8 +615,8 @@
             requestAnimationFrame(animate);
         }
 
-        // Get text particle positions
-        function getTextPositions(text) {
+        // Get text particle positions (positioned higher for content reveal)
+        function getTextPositions(text, forReveal = false) {
             const fontSize = Math.min(canvas.width / (text.length * 0.8), 200);
             textCanvas.width = canvas.width;
             textCanvas.height = canvas.height;
@@ -523,7 +625,9 @@
             textCtx.font = `bold ${fontSize}px 'Space Grotesk', sans-serif`;
             textCtx.textAlign = 'center';
             textCtx.textBaseline = 'middle';
-            textCtx.fillText(text, canvas.width / 2, canvas.height / 2);
+            // Position text in center initially, will move up later
+            const yPos = forReveal ? canvas.height * 0.3 : canvas.height / 2;
+            textCtx.fillText(text, canvas.width / 2, yPos);
 
             const imageData = textCtx.getImageData(0, 0, canvas.width, canvas.height);
             const positions = [];
@@ -577,13 +681,80 @@
             // Enable mouse interaction after animation completes
             setTimeout(() => {
                 textFormed = true;
-            }, 1500); // 1.2s duration + 0.3s max delay
+            }, 1500);
+
+            // Start content reveal immediately but with delay built in
+            revealContent(word);
+        }
+
+        // Reveal content with particles moving up and each item sliding in
+        function revealContent(word) {
+            const contentId = `content-${word.toLowerCase()}`;
+            const contentEl = document.getElementById(contentId);
+            if (!contentEl) return;
+
+            const listItems = contentEl.querySelectorAll('.content-list li');
+            const upwardShift = canvas.height * 0.15;
+
+            // Show container after particles start forming
+            setTimeout(() => {
+                contentEl.classList.add('visible');
+
+                // Animate content container up together with particles
+                gsap.fromTo(contentEl,
+                    { y: 0 },
+                    {
+                        y: -upwardShift,
+                        duration: 2.5,
+                        delay: 0.2, // Slight delay after showing
+                        ease: 'power2.out'
+                    }
+                );
+            }, 800);
+
+            // Animate particles up - starts after initial formation, blends smoothly
+            particles.forEach((particle) => {
+                if (particle.targetY !== null) {
+                    const newTarget = particle.targetY - upwardShift;
+                    gsap.to(particle, {
+                        y: newTarget,
+                        duration: 2.5,
+                        delay: 1.0,
+                        ease: 'power2.out',
+                        onStart: () => {
+                            particle.targetY = newTarget;
+                        }
+                    });
+                }
+            });
+
+            // Each list item slides in individually as they move up
+            listItems.forEach((item, index) => {
+                gsap.to(item, {
+                    opacity: 1,
+                    y: 0,
+                    duration: 1,
+                    delay: 1.4 + index * 0.35,
+                    ease: 'power2.out'
+                });
+            });
+        }
+
+        // Hide content
+        function hideContent() {
+            const contentEls = document.querySelectorAll('.content-reveal');
+            contentEls.forEach(el => {
+                el.classList.remove('visible');
+                const listItems = el.querySelectorAll('.content-list li');
+                gsap.set(listItems, { y: 40, opacity: 0 });
+            });
         }
 
         // Animate particles back to floating
         function animateBack() {
             if (!isAnimating) return;
             textFormed = false;
+            hideContent();
 
             particles.forEach(particle => {
                 const newX = Math.random() * canvas.width;
