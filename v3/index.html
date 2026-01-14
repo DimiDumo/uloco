@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>uloco ~ terminal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Bluloco Dark Theme Colors */
+            --bg: #282c34;
+            --bg-lighter: #2c313a;
+            --bg-darker: #21252b;
+            --fg: #abb2bf;
+            --comment: #636d83;
+            --keyword: #10b1fe;
+            --function: #3fc56b;
+            --property: #ce9887;
+            --string: #f9c859;
+            --number: #ff78f8;
+            --constant: #9f7efe;
+            --tag: #3691ff;
+            --attribute: #ff936a;
+            --class: #ff6480;
+            --operator: #7a82da;
+        }
+
+        html {
+            font-size: 16px;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-darker);
+            min-height: 100vh;
+            color: var(--fg);
+            overflow-x: hidden;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+        }
+
+        /* Scanline effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 0, 0, 0.03) 2px,
+                rgba(0, 0, 0, 0.03) 4px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* CRT glow effect */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(
+                ellipse at center,
+                transparent 0%,
+                rgba(0, 0, 0, 0.3) 100%
+            );
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* Terminal window */
+        .terminal {
+            width: 100%;
+            max-width: 900px;
+            background: var(--bg);
+            border-radius: 12px;
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                0 0 100px rgba(16, 177, 254, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Terminal header */
+        .terminal-header {
+            background: var(--bg-darker);
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .terminal-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+
+        .terminal-btn:hover {
+            filter: brightness(1.3);
+        }
+
+        .btn-close { background: var(--class); }
+        .btn-minimize { background: var(--string); }
+        .btn-maximize { background: var(--function); }
+
+        .terminal-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--comment);
+            margin-right: 52px;
+        }
+
+        /* Terminal body */
+        .terminal-body {
+            padding: 1.5rem;
+            min-height: 400px;
+            position: relative;
+        }
+
+        .line {
+            margin-bottom: 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            opacity: 0;
+        }
+
+        .prompt {
+            color: var(--function);
+            margin-right: 0.5rem;
+        }
+
+        .prompt::before {
+            content: '❯';
+            margin-right: 0.5rem;
+            color: var(--keyword);
+        }
+
+        .command {
+            color: var(--fg);
+        }
+
+        .output {
+            color: var(--comment);
+            padding-left: 1.5rem;
+        }
+
+        /* Syntax highlighting classes */
+        .keyword { color: var(--keyword); }
+        .function { color: var(--function); }
+        .string { color: var(--string); }
+        .number { color: var(--number); }
+        .constant { color: var(--constant); }
+        .class { color: var(--class); }
+        .operator { color: var(--operator); }
+        .property { color: var(--property); }
+        .comment { color: var(--comment); }
+        .attribute { color: var(--attribute); }
+        .tag { color: var(--tag); }
+
+        /* Blinking cursor */
+        .cursor {
+            display: inline-block;
+            width: 0.6rem;
+            height: 1.2rem;
+            background: var(--keyword);
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        /* ASCII art container */
+        .ascii-art {
+            color: var(--keyword);
+            font-size: 0.6rem;
+            line-height: 1.2;
+            margin: 1rem 0;
+            opacity: 0;
+        }
+
+        /* Stats grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+            opacity: 0;
+        }
+
+        .stat-box {
+            background: var(--bg-darker);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+        }
+
+        .stat-box:nth-child(1)::before { background: var(--keyword); }
+        .stat-box:nth-child(2)::before { background: var(--function); }
+        .stat-box:nth-child(3)::before { background: var(--string); }
+        .stat-box:nth-child(4)::before { background: var(--number); }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--comment);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .stat-box:nth-child(1) .stat-value { color: var(--keyword); }
+        .stat-box:nth-child(2) .stat-value { color: var(--function); }
+        .stat-box:nth-child(3) .stat-value { color: var(--string); }
+        .stat-box:nth-child(4) .stat-value { color: var(--number); }
+
+        /* Progress bar */
+        .progress-container {
+            margin: 1rem 0;
+            opacity: 0;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: var(--bg-darker);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0;
+            border-radius: 3px;
+        }
+
+        .progress-1 .progress-fill { background: linear-gradient(90deg, var(--keyword), var(--constant)); }
+        .progress-2 .progress-fill { background: linear-gradient(90deg, var(--function), var(--string)); }
+        .progress-3 .progress-fill { background: linear-gradient(90deg, var(--class), var(--number)); }
+
+        /* Code block */
+        .code-block {
+            background: var(--bg-darker);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            overflow-x: auto;
+            opacity: 0;
+        }
+
+        .code-block pre {
+            font-size: 0.8rem;
+            line-height: 1.6;
+        }
+
+        .line-number {
+            color: var(--comment);
+            margin-right: 1rem;
+            user-select: none;
+            opacity: 0.5;
+        }
+
+        /* Links section */
+        .links-section {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+            opacity: 0;
+        }
+
+        .terminal-link {
+            color: var(--keyword);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--keyword);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .terminal-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--keyword);
+            transition: left 0.3s ease;
+            z-index: -1;
+        }
+
+        .terminal-link:hover {
+            color: var(--bg);
+        }
+
+        .terminal-link:hover::before {
+            left: 0;
+        }
+
+        /* Matrix rain canvas */
+        #matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.05;
+        }
+
+        /* Floating particles */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            opacity: 0;
+        }
+
+        /* Glitch effect */
+        .glitch {
+            position: relative;
+        }
+
+        .glitch::before,
+        .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+        }
+
+        .glitch::before {
+            color: var(--class);
+            animation: glitch-1 0.3s infinite;
+            clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+            transform: translateX(-2px);
+        }
+
+        .glitch::after {
+            color: var(--keyword);
+            animation: glitch-2 0.3s infinite;
+            clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+            transform: translateX(2px);
+        }
+
+        .glitch:hover::before,
+        .glitch:hover::after {
+            opacity: 0.8;
+        }
+
+        @keyframes glitch-1 {
+            0%, 100% { transform: translateX(-2px); }
+            50% { transform: translateX(2px); }
+        }
+
+        @keyframes glitch-2 {
+            0%, 100% { transform: translateX(2px); }
+            50% { transform: translateX(-2px); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .terminal-body {
+                padding: 1rem;
+                font-size: 0.85rem;
+            }
+
+            .ascii-art {
+                font-size: 0.4rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Neofetch style info */
+        .neofetch {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 2rem;
+            align-items: start;
+            margin: 1rem 0;
+            opacity: 0;
+        }
+
+        .neofetch-logo {
+            font-size: 0.5rem;
+            line-height: 1.1;
+            color: var(--keyword);
+            white-space: pre;
+        }
+
+        .neofetch-info {
+            font-size: 0.8rem;
+        }
+
+        .neofetch-info .info-line {
+            margin-bottom: 0.3rem;
+        }
+
+        .info-label {
+            color: var(--keyword);
+            font-weight: 700;
+        }
+
+        .color-blocks {
+            display: flex;
+            gap: 0;
+            margin-top: 1rem;
+        }
+
+        .color-block {
+            width: 2rem;
+            height: 1rem;
+        }
+
+        /* Activity graph */
+        .activity-graph {
+            margin: 1rem 0;
+            opacity: 0;
+        }
+
+        .graph-row {
+            display: flex;
+            gap: 3px;
+            margin-bottom: 3px;
+        }
+
+        .graph-cell {
+            width: 12px;
+            height: 12px;
+            background: var(--bg-darker);
+            border-radius: 2px;
+            transition: background 0.3s ease;
+        }
+
+        .graph-cell.level-1 { background: rgba(63, 197, 107, 0.2); }
+        .graph-cell.level-2 { background: rgba(63, 197, 107, 0.4); }
+        .graph-cell.level-3 { background: rgba(63, 197, 107, 0.6); }
+        .graph-cell.level-4 { background: var(--function); }
+    </style>
+</head>
+<body>
+    <!-- Matrix background -->
+    <canvas id="matrix-bg"></canvas>
+
+    <!-- Floating particles -->
+    <div class="particles">
+        <div class="particle" style="background: var(--keyword);"></div>
+        <div class="particle" style="background: var(--function);"></div>
+        <div class="particle" style="background: var(--string);"></div>
+        <div class="particle" style="background: var(--number);"></div>
+        <div class="particle" style="background: var(--constant);"></div>
+        <div class="particle" style="background: var(--class);"></div>
+    </div>
+
+    <!-- Main terminal -->
+    <div class="terminal" id="main-terminal">
+        <div class="terminal-header">
+            <div class="terminal-btn btn-close"></div>
+            <div class="terminal-btn btn-minimize"></div>
+            <div class="terminal-btn btn-maximize"></div>
+            <div class="terminal-title">uloco@dev ~ zsh</div>
+        </div>
+        <div class="terminal-body">
+            <!-- Boot sequence -->
+            <div class="line" id="line-1">
+                <span class="prompt">~</span>
+                <span class="command">neofetch</span>
+            </div>
+
+            <!-- Neofetch style display -->
+            <div class="neofetch" id="neofetch">
+                <div class="neofetch-logo">
+    ██╗   ██╗██╗      ██████╗  ██████╗ ██████╗
+    ██║   ██║██║     ██╔═══██╗██╔════╝██╔═══██╗
+    ██║   ██║██║     ██║   ██║██║     ██║   ██║
+    ██║   ██║██║     ██║   ██║██║     ██║   ██║
+    ╚██████╔╝███████╗╚██████╔╝╚██████╗╚██████╔╝
+     ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝
+                </div>
+                <div class="neofetch-info">
+                    <div class="info-line"><span class="info-label">OS:</span> <span class="string">Bluloco Dark Theme</span></div>
+                    <div class="info-line"><span class="info-label">Host:</span> <span class="fg">VS Code / JetBrains</span></div>
+                    <div class="info-line"><span class="info-label">Kernel:</span> <span class="fg">Syntax v2.0</span></div>
+                    <div class="info-line"><span class="info-label">Uptime:</span> <span class="number">∞</span> <span class="comment">hours</span></div>
+                    <div class="info-line"><span class="info-label">Packages:</span> <span class="number">100+</span> <span class="comment">color scopes</span></div>
+                    <div class="info-line"><span class="info-label">Shell:</span> <span class="function">zsh 5.9</span></div>
+                    <div class="info-line"><span class="info-label">Resolution:</span> <span class="fg">Retina-ready</span></div>
+                    <div class="info-line"><span class="info-label">DE:</span> <span class="constant">Night Shift Compatible</span></div>
+                    <div class="info-line"><span class="info-label">Theme:</span> <span class="keyword">Bluloco</span> <span class="class">[Dark]</span></div>
+                    <div class="info-line"><span class="info-label">Icons:</span> <span class="attribute">vscode-icons</span></div>
+                    <div class="info-line"><span class="info-label">Terminal:</span> <span class="fg">iTerm2</span></div>
+                    <div class="info-line"><span class="info-label">CPU:</span> <span class="fg">Your Eyes @ 60Hz</span></div>
+                    <div class="info-line"><span class="info-label">Memory:</span> <span class="number">0%</span> <span class="comment">eye strain</span></div>
+                    <div class="color-blocks">
+                        <div class="color-block" style="background: var(--keyword);"></div>
+                        <div class="color-block" style="background: var(--function);"></div>
+                        <div class="color-block" style="background: var(--string);"></div>
+                        <div class="color-block" style="background: var(--number);"></div>
+                        <div class="color-block" style="background: var(--constant);"></div>
+                        <div class="color-block" style="background: var(--class);"></div>
+                        <div class="color-block" style="background: var(--operator);"></div>
+                        <div class="color-block" style="background: var(--attribute);"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats command -->
+            <div class="line" id="line-2">
+                <span class="prompt">~</span>
+                <span class="command">cat ./stats.json | jq</span>
+            </div>
+
+            <div class="stats-grid" id="stats">
+                <div class="stat-box">
+                    <div class="stat-label">Downloads</div>
+                    <div class="stat-value" data-value="500000">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">GitHub Stars</div>
+                    <div class="stat-value" data-value="1200">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Color Scopes</div>
+                    <div class="stat-value" data-value="100">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Happy Devs</div>
+                    <div class="stat-value" data-value="99">0</div>
+                    <span class="number">%</span>
+                </div>
+            </div>
+
+            <!-- Progress bars -->
+            <div class="line" id="line-3">
+                <span class="prompt">~</span>
+                <span class="command">htop --colors</span>
+            </div>
+
+            <div class="progress-container progress-1" id="progress-1">
+                <div class="progress-label">
+                    <span class="keyword">Readability</span>
+                    <span class="number">98%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+            </div>
+
+            <div class="progress-container progress-2" id="progress-2">
+                <div class="progress-label">
+                    <span class="function">Consistency</span>
+                    <span class="number">95%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+            </div>
+
+            <div class="progress-container progress-3" id="progress-3">
+                <div class="progress-label">
+                    <span class="class">Eye Comfort</span>
+                    <span class="number">100%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+            </div>
+
+            <!-- Code sample -->
+            <div class="line" id="line-4">
+                <span class="prompt">~</span>
+                <span class="command">cat ./example.ts</span>
+            </div>
+
+            <div class="code-block" id="code-block">
+                <pre><span class="line-number">1</span><span class="keyword">interface</span> <span class="class">Theme</span> {
+<span class="line-number">2</span>  <span class="property">name</span>: <span class="class">string</span>;
+<span class="line-number">3</span>  <span class="property">type</span>: <span class="string">'dark'</span> | <span class="string">'light'</span>;
+<span class="line-number">4</span>  <span class="property">colors</span>: <span class="class">Record</span>&lt;<span class="class">string</span>, <span class="class">string</span>&gt;;
+<span class="line-number">5</span>}
+<span class="line-number">6</span>
+<span class="line-number">7</span><span class="keyword">const</span> <span class="constant">bluloco</span>: <span class="class">Theme</span> = {
+<span class="line-number">8</span>  <span class="property">name</span>: <span class="string">'Bluloco Dark'</span>,
+<span class="line-number">9</span>  <span class="property">type</span>: <span class="string">'dark'</span>,
+<span class="line-number">10</span>  <span class="property">colors</span>: {
+<span class="line-number">11</span>    <span class="property">keyword</span>: <span class="string">'#10b1fe'</span>,  <span class="comment">// cyan blue</span>
+<span class="line-number">12</span>    <span class="property">function</span>: <span class="string">'#3fc56b'</span>, <span class="comment">// green</span>
+<span class="line-number">13</span>    <span class="property">string</span>: <span class="string">'#f9c859'</span>,   <span class="comment">// yellow</span>
+<span class="line-number">14</span>    <span class="property">number</span>: <span class="string">'#ff78f8'</span>,   <span class="comment">// magenta</span>
+<span class="line-number">15</span>  }
+<span class="line-number">16</span>};
+<span class="line-number">17</span>
+<span class="line-number">18</span><span class="keyword">export</span> <span class="keyword">function</span> <span class="function">applyTheme</span>(<span class="property">theme</span>: <span class="class">Theme</span>): <span class="class">void</span> {
+<span class="line-number">19</span>  <span class="constant">console</span>.<span class="function">log</span>(<span class="string">`Applying </span><span class="keyword">${</span><span class="property">theme</span>.<span class="property">name</span><span class="keyword">}</span><span class="string">...`</span>);
+<span class="line-number">20</span>  <span class="comment">// Magic happens here ✨</span>
+<span class="line-number">21</span>}</pre>
+            </div>
+
+            <!-- Activity graph -->
+            <div class="line" id="line-5">
+                <span class="prompt">~</span>
+                <span class="command">gh contrib --year 2024</span>
+            </div>
+
+            <div class="activity-graph" id="activity-graph">
+                <!-- Generated by JS -->
+            </div>
+
+            <!-- Links -->
+            <div class="line" id="line-6">
+                <span class="prompt">~</span>
+                <span class="command">open ./links</span>
+            </div>
+
+            <div class="links-section" id="links">
+                <a href="https://github.com/uloco/theme-bluloco-dark" class="terminal-link" target="_blank">
+                    <span class="keyword">&gt;</span> GitHub
+                </a>
+                <a href="https://marketplace.visualstudio.com/items?itemName=uloco.theme-bluloco-dark" class="terminal-link" target="_blank">
+                    <span class="keyword">&gt;</span> VS Code Marketplace
+                </a>
+                <a href="#" class="terminal-link">
+                    <span class="keyword">&gt;</span> Documentation
+                </a>
+            </div>
+
+            <!-- Final prompt with cursor -->
+            <div class="line" id="line-final" style="margin-top: 1.5rem;">
+                <span class="prompt">~</span>
+                <span class="command glitch" data-text="_">_</span>
+                <span class="cursor"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer terminal -->
+    <div class="terminal" style="max-width: 900px;">
+        <div class="terminal-header">
+            <div class="terminal-btn btn-close"></div>
+            <div class="terminal-btn btn-minimize"></div>
+            <div class="terminal-btn btn-maximize"></div>
+            <div class="terminal-title">system ~ info</div>
+        </div>
+        <div class="terminal-body" style="min-height: auto; padding: 1rem 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; font-size: 0.75rem;">
+                <span class="comment">// crafted with <span class="class">♥</span> by uloco</span>
+                <span class="comment">// theme: <span class="keyword">bluloco-dark</span></span>
+                <span class="comment">// <span class="function">MIT</span> licensed</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Register GSAP plugins
+        gsap.registerPlugin(TextPlugin);
+
+        // Matrix rain effect
+        const canvas = document.getElementById('matrix-bg');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789';
+        const charArray = chars.split('');
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        const drops = [];
+
+        for (let i = 0; i < columns; i++) {
+            drops[i] = Math.random() * canvas.height / fontSize;
+        }
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(33, 37, 43, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#10b1fe';
+            ctx.font = fontSize + 'px JetBrains Mono';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = charArray[Math.floor(Math.random() * charArray.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        setInterval(drawMatrix, 50);
+
+        // Particle animation
+        const particles = document.querySelectorAll('.particle');
+        particles.forEach((particle, index) => {
+            gsap.set(particle, {
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+            });
+
+            gsap.to(particle, {
+                x: `+=${Math.random() * 200 - 100}`,
+                y: `+=${Math.random() * 200 - 100}`,
+                opacity: Math.random() * 0.5 + 0.2,
+                duration: Math.random() * 10 + 5,
+                repeat: -1,
+                yoyo: true,
+                ease: 'sine.inOut',
+                delay: index * 0.5,
+            });
+        });
+
+        // Generate activity graph
+        const activityGraph = document.getElementById('activity-graph');
+        for (let row = 0; row < 7; row++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'graph-row';
+            for (let col = 0; col < 52; col++) {
+                const cell = document.createElement('div');
+                cell.className = 'graph-cell';
+                const level = Math.floor(Math.random() * 5);
+                if (level > 0) cell.classList.add(`level-${level}`);
+                rowDiv.appendChild(cell);
+            }
+            activityGraph.appendChild(rowDiv);
+        }
+
+        // Main animation timeline
+        const mainTl = gsap.timeline({ defaults: { ease: 'power2.out' } });
+
+        // Terminal entrance
+        mainTl.from('#main-terminal', {
+            opacity: 0,
+            y: 50,
+            scale: 0.95,
+            duration: 0.8,
+        });
+
+        // Line by line reveal with typing effect
+        const lines = [
+            { id: '#line-1', after: '#neofetch', afterDelay: 0.5 },
+            { id: '#line-2', after: '#stats', afterDelay: 0.3 },
+            { id: '#line-3', after: null, afterDelay: 0 },
+            { id: '#line-4', after: '#code-block', afterDelay: 0.3 },
+            { id: '#line-5', after: '#activity-graph', afterDelay: 0.3 },
+            { id: '#line-6', after: '#links', afterDelay: 0.3 },
+        ];
+
+        lines.forEach((line, index) => {
+            mainTl.to(line.id, {
+                opacity: 1,
+                duration: 0.3,
+            }, index === 0 ? '+=0.3' : '+=0.2');
+
+            if (line.after) {
+                mainTl.to(line.after, {
+                    opacity: 1,
+                    duration: 0.5,
+                }, `+=${line.afterDelay}`);
+            }
+
+            // Progress bars animation
+            if (line.id === '#line-3') {
+                mainTl.to('#progress-1', { opacity: 1, duration: 0.3 }, '+=0.2');
+                mainTl.to('#progress-1 .progress-fill', { width: '98%', duration: 1, ease: 'power2.out' }, '-=0.1');
+                mainTl.to('#progress-2', { opacity: 1, duration: 0.3 }, '-=0.5');
+                mainTl.to('#progress-2 .progress-fill', { width: '95%', duration: 1, ease: 'power2.out' }, '-=0.1');
+                mainTl.to('#progress-3', { opacity: 1, duration: 0.3 }, '-=0.5');
+                mainTl.to('#progress-3 .progress-fill', { width: '100%', duration: 1, ease: 'power2.out' }, '-=0.1');
+            }
+        });
+
+        // Final line
+        mainTl.to('#line-final', {
+            opacity: 1,
+            duration: 0.3,
+        });
+
+        // Animate stat counters
+        mainTl.add(() => {
+            document.querySelectorAll('.stat-value[data-value]').forEach(stat => {
+                const target = parseInt(stat.dataset.value);
+                gsap.to(stat, {
+                    textContent: target,
+                    duration: 2,
+                    snap: { textContent: 1 },
+                    ease: 'power2.out',
+                    modifiers: {
+                        textContent: value => {
+                            const num = Math.round(parseFloat(value));
+                            return num >= 1000 ? (num / 1000).toFixed(0) + 'K+' : num;
+                        }
+                    }
+                });
+            });
+        }, '-=3');
+
+        // Activity graph cells animation
+        mainTl.add(() => {
+            gsap.from('.graph-cell', {
+                opacity: 0,
+                scale: 0,
+                duration: 0.02,
+                stagger: {
+                    each: 0.005,
+                    from: 'start',
+                },
+                ease: 'power2.out',
+            });
+        }, '-=2');
+
+        // Code block line-by-line highlight
+        mainTl.add(() => {
+            const codeLines = document.querySelectorAll('#code-block pre > span.line-number');
+            codeLines.forEach((line, index) => {
+                gsap.from(line.parentElement || line, {
+                    opacity: 0,
+                    x: -10,
+                    duration: 0.1,
+                    delay: index * 0.05,
+                });
+            });
+        }, '-=1.5');
+
+        // Hover effects for terminal buttons
+        document.querySelectorAll('.terminal-btn').forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                gsap.to(btn, { scale: 1.2, duration: 0.2 });
+            });
+            btn.addEventListener('mouseleave', () => {
+                gsap.to(btn, { scale: 1, duration: 0.2 });
+            });
+        });
+
+        // Color blocks pulse animation
+        gsap.to('.color-block', {
+            scale: 1.1,
+            duration: 0.5,
+            stagger: {
+                each: 0.1,
+                repeat: -1,
+                yoyo: true,
+            },
+            ease: 'power1.inOut',
+        });
+
+        // Terminal glitch effect on hover
+        const terminal = document.querySelector('#main-terminal');
+        terminal.addEventListener('mouseenter', () => {
+            gsap.to(terminal, {
+                boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.1), 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 150px rgba(16, 177, 254, 0.2)',
+                duration: 0.3,
+            });
+        });
+        terminal.addEventListener('mouseleave', () => {
+            gsap.to(terminal, {
+                boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.1), 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 100px rgba(16, 177, 254, 0.1)',
+                duration: 0.3,
+            });
+        });
+
+        // Resize handler for matrix
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Random glitch effect
+        setInterval(() => {
+            if (Math.random() > 0.95) {
+                gsap.to('#main-terminal', {
+                    x: Math.random() * 4 - 2,
+                    duration: 0.05,
+                    yoyo: true,
+                    repeat: 3,
+                    onComplete: () => {
+                        gsap.set('#main-terminal', { x: 0 });
+                    }
+                });
+            }
+        }, 2000);
+
+        // Typing effect for command prompt on click
+        document.querySelectorAll('.command').forEach(cmd => {
+            cmd.style.cursor = 'pointer';
+            cmd.addEventListener('click', () => {
+                const text = cmd.textContent;
+                cmd.textContent = '';
+                gsap.to(cmd, {
+                    duration: text.length * 0.05,
+                    text: text,
+                    ease: 'none',
+                });
+            });
+        });
+    </script>
+</body>
+</html>
