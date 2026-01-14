@@ -105,6 +105,11 @@
             border: 4px solid #f5f0e6;
         }
 
+        /* Slight opacity for outer bubbles */
+        .bubble:not(.bubble-avatar) {
+            opacity: 0.92;
+        }
+
         .bubble-avatar img {
             width: 100%;
             height: 100%;
@@ -290,17 +295,7 @@
             <!-- Avatar (center) -->
             <div class="bubble bubble-avatar" data-label="">
                 <div class="bubble-content">
-                    <svg viewBox="0 0 120 120" width="100%" height="100%">
-                        <defs>
-                            <linearGradient id="avatarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" style="stop-color:#f97316"/>
-                                <stop offset="50%" style="stop-color:#ec4899"/>
-                                <stop offset="100%" style="stop-color:#8b5cf6"/>
-                            </linearGradient>
-                        </defs>
-                        <circle cx="60" cy="45" r="25" fill="url(#avatarGradient)"/>
-                        <ellipse cx="60" cy="95" rx="35" ry="25" fill="url(#avatarGradient)"/>
-                    </svg>
+                    <img src="avatar.png" alt="Uloco" style="width: 100%; height: 100%; object-fit: cover;">
                 </div>
             </div>
 
@@ -384,7 +379,9 @@
         let mouse = {
             x: null,
             y: null,
-            radius: 80 // Repulsion radius
+            radius: 50, // Smaller repulsion radius
+            isMoving: false,
+            lastMoveTime: 0
         };
 
         // Canvas setup
@@ -402,12 +399,22 @@
         window.addEventListener('mousemove', (e) => {
             mouse.x = e.clientX;
             mouse.y = e.clientY;
+            mouse.isMoving = true;
+            mouse.lastMoveTime = Date.now();
         });
 
         window.addEventListener('mouseout', () => {
             mouse.x = null;
             mouse.y = null;
+            mouse.isMoving = false;
         });
+
+        // Check if mouse stopped moving (every 100ms)
+        setInterval(() => {
+            if (Date.now() - mouse.lastMoveTime > 5000) {
+                mouse.isMoving = false;
+            }
+        }, 100);
 
         // Text canvas for generating letter positions
         const textCanvas = document.getElementById('text-canvas');
@@ -456,8 +463,8 @@
                         this.vy = Math.max(-0.8, Math.min(0.8, this.vy));
                     }
                 } else if (textFormed && this.targetX !== null) {
-                    // Mouse repulsion effect when text is formed
-                    if (mouse.x !== null && mouse.y !== null) {
+                    // Mouse repulsion effect when text is formed AND mouse is moving
+                    if (mouse.isMoving && mouse.x !== null && mouse.y !== null) {
                         const dx = this.x - mouse.x;
                         const dy = this.y - mouse.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -466,8 +473,8 @@
                             // Push particle away from mouse
                             const force = (mouse.radius - distance) / mouse.radius;
                             const angle = Math.atan2(dy, dx);
-                            this.x += Math.cos(angle) * force * 15;
-                            this.y += Math.sin(angle) * force * 15;
+                            this.x += Math.cos(angle) * force * 12;
+                            this.y += Math.sin(angle) * force * 12;
                         }
                     }
 
@@ -653,20 +660,38 @@
 
         // Initial bubble animations
         function animateBubblesIn() {
-            const bubbles = document.querySelectorAll('.bubble');
+            // Order: Avatar first, then clockwise (Books, Bits, Arts, Sounds, Thoughts)
+            const avatar = document.querySelector('.bubble-avatar');
+            const clockwiseOrder = [
+                document.querySelector('.bubble-books'),
+                document.querySelector('.bubble-bits'),
+                document.querySelector('.bubble-arts'),
+                document.querySelector('.bubble-sounds'),
+                document.querySelector('.bubble-thoughts')
+            ];
 
-            bubbles.forEach((bubble, index) => {
+            // Animate avatar first
+            gsap.fromTo(avatar,
+                { opacity: 0, scale: 0 },
+                {
+                    opacity: 1,
+                    scale: 1,
+                    duration: 0.7,
+                    ease: 'elastic.out(1, 0.75)'
+                }
+            );
+
+            // Then animate outer bubbles clockwise
+            clockwiseOrder.forEach((bubble, index) => {
                 gsap.fromTo(bubble,
+                    { opacity: 0, scale: 0, y: 20 },
                     {
-                        opacity: 0,
-                        scale: 0,
-                    },
-                    {
-                        opacity: 1,
+                        opacity: 0.92,
                         scale: 1,
-                        duration: 0.8,
-                        delay: index * 0.1,
-                        ease: 'back.out(1.7)'
+                        y: 0,
+                        duration: 0.6,
+                        delay: 0.4 + index * 0.12,
+                        ease: 'back.out(1.4)'
                     }
                 );
             });
