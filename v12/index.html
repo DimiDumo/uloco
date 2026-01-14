@@ -376,8 +376,16 @@
         // State
         let particles = [];
         let isAnimating = false;
+        let textFormed = false;
         let currentWord = '';
         let textParticlePositions = [];
+
+        // Mouse tracking
+        let mouse = {
+            x: null,
+            y: null,
+            radius: 80 // Repulsion radius
+        };
 
         // Canvas setup
         const canvas = document.getElementById('particle-canvas');
@@ -389,6 +397,17 @@
         }
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
+
+        // Mouse event listeners
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        window.addEventListener('mouseout', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
 
         // Text canvas for generating letter positions
         const textCanvas = document.getElementById('text-canvas');
@@ -436,6 +455,26 @@
                         this.vx = Math.max(-0.8, Math.min(0.8, this.vx));
                         this.vy = Math.max(-0.8, Math.min(0.8, this.vy));
                     }
+                } else if (textFormed && this.targetX !== null) {
+                    // Mouse repulsion effect when text is formed
+                    if (mouse.x !== null && mouse.y !== null) {
+                        const dx = this.x - mouse.x;
+                        const dy = this.y - mouse.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance < mouse.radius) {
+                            // Push particle away from mouse
+                            const force = (mouse.radius - distance) / mouse.radius;
+                            const angle = Math.atan2(dy, dx);
+                            this.x += Math.cos(angle) * force * 15;
+                            this.y += Math.sin(angle) * force * 15;
+                        }
+                    }
+
+                    // Slowly return to target position
+                    const returnSpeed = 0.08;
+                    this.x += (this.targetX - this.x) * returnSpeed;
+                    this.y += (this.targetY - this.y) * returnSpeed;
                 }
             }
 
@@ -527,11 +566,17 @@
                     ease: 'power3.out'
                 });
             });
+
+            // Enable mouse interaction after animation completes
+            setTimeout(() => {
+                textFormed = true;
+            }, 1500); // 1.2s duration + 0.3s max delay
         }
 
         // Animate particles back to floating
         function animateBack() {
             if (!isAnimating) return;
+            textFormed = false;
 
             particles.forEach(particle => {
                 const newX = Math.random() * canvas.width;
