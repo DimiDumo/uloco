@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uloco - Flashlight Reveal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            cursor: none;
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Dark base layer - always visible */
+        .image-dark {
+            position: absolute;
+            max-width: 90%;
+            max-height: 90%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            filter: brightness(0) saturate(0);
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        /* Colorful layer - revealed by spotlight */
+        .image-color {
+            position: absolute;
+            max-width: 90%;
+            max-height: 90%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            user-select: none;
+            -webkit-user-drag: none;
+            /* Mask will be applied via CSS custom properties */
+            -webkit-mask-image: radial-gradient(
+                circle var(--spotlight-size, 100px) at var(--mouse-x, -1000px) var(--mouse-y, -1000px),
+                rgba(0, 0, 0, 1) 0%,
+                rgba(0, 0, 0, 0.9) 40%,
+                rgba(0, 0, 0, 0.6) 60%,
+                rgba(0, 0, 0, 0.2) 80%,
+                rgba(0, 0, 0, 0) 100%
+            );
+            mask-image: radial-gradient(
+                circle var(--spotlight-size, 100px) at var(--mouse-x, -1000px) var(--mouse-y, -1000px),
+                rgba(0, 0, 0, 1) 0%,
+                rgba(0, 0, 0, 0.9) 40%,
+                rgba(0, 0, 0, 0.6) 60%,
+                rgba(0, 0, 0, 0.2) 80%,
+                rgba(0, 0, 0, 0) 100%
+            );
+        }
+
+        /* Glow effect layer */
+        .glow {
+            position: fixed;
+            pointer-events: none;
+            width: var(--glow-size, 250px);
+            height: var(--glow-size, 250px);
+            transform: translate(-50%, -50%);
+            left: var(--mouse-x-screen, -1000px);
+            top: var(--mouse-y-screen, -1000px);
+            background: radial-gradient(
+                circle at center,
+                rgba(255, 255, 255, 0.03) 0%,
+                rgba(180, 200, 255, 0.08) 20%,
+                rgba(100, 150, 255, 0.05) 40%,
+                rgba(80, 120, 200, 0.02) 60%,
+                transparent 70%
+            );
+            border-radius: 50%;
+            filter: blur(10px);
+            mix-blend-mode: screen;
+            z-index: 10;
+        }
+
+        /* Outer bloom ring */
+        .bloom {
+            position: fixed;
+            pointer-events: none;
+            width: calc(var(--glow-size, 250px) * 1.4);
+            height: calc(var(--glow-size, 250px) * 1.4);
+            transform: translate(-50%, -50%);
+            left: var(--mouse-x-screen, -1000px);
+            top: var(--mouse-y-screen, -1000px);
+            background: radial-gradient(
+                circle at center,
+                transparent 30%,
+                rgba(100, 150, 255, 0.04) 50%,
+                rgba(80, 100, 180, 0.02) 65%,
+                transparent 80%
+            );
+            border-radius: 50%;
+            filter: blur(20px);
+            mix-blend-mode: screen;
+            z-index: 9;
+        }
+
+        /* Custom cursor */
+        .cursor {
+            position: fixed;
+            pointer-events: none;
+            width: 8px;
+            height: 8px;
+            transform: translate(-50%, -50%);
+            left: var(--mouse-x-screen, -1000px);
+            top: var(--mouse-y-screen, -1000px);
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            box-shadow:
+                0 0 10px rgba(255, 255, 255, 0.5),
+                0 0 20px rgba(255, 255, 255, 0.3),
+                0 0 40px rgba(255, 255, 255, 0.1);
+            z-index: 100;
+            transition: transform 0.1s ease, opacity 0.2s ease;
+        }
+
+        .cursor.active {
+            transform: translate(-50%, -50%) scale(0.7);
+        }
+
+        /* Subtle vignette */
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: radial-gradient(
+                ellipse at center,
+                transparent 40%,
+                rgba(0, 0, 0, 0.3) 100%
+            );
+            z-index: 5;
+        }
+
+        /* Hint text */
+        .hint {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.3);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            z-index: 20;
+            opacity: 1;
+            transition: opacity 1s ease;
+            pointer-events: none;
+        }
+
+        .hint.hidden {
+            opacity: 0;
+        }
+
+        /* Touch support indicator */
+        @media (hover: none) and (pointer: coarse) {
+            .hint::after {
+                content: ' (touch to reveal)';
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="uloco.png" alt="Uloco" class="image-dark">
+        <img src="uloco.png" alt="Uloco" class="image-color">
+    </div>
+
+    <div class="glow"></div>
+    <div class="bloom"></div>
+    <div class="vignette"></div>
+    <div class="cursor"></div>
+    <div class="hint">Move cursor to reveal</div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // Configuration
+            const CONFIG = {
+                spotlightSize: 175,      // Base spotlight diameter
+                glowSize: 280,           // Glow effect size
+                smoothing: 0.15,         // Cursor smoothing (0-1, lower = smoother)
+                mobileSpotlightSize: 120 // Smaller spotlight for mobile
+            };
+
+            // State
+            const state = {
+                mouseX: -1000,
+                mouseY: -1000,
+                targetX: -1000,
+                targetY: -1000,
+                isActive: false,
+                hasInteracted: false
+            };
+
+            // DOM elements
+            const root = document.documentElement;
+            const imageColor = document.querySelector('.image-color');
+            const cursor = document.querySelector('.cursor');
+            const hint = document.querySelector('.hint');
+
+            // Detect if touch device
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+            // Set appropriate spotlight size
+            const spotlightSize = isTouchDevice ? CONFIG.mobileSpotlightSize : CONFIG.spotlightSize;
+            root.style.setProperty('--spotlight-size', `${spotlightSize}px`);
+            root.style.setProperty('--glow-size', `${CONFIG.glowSize}px`);
+
+            // Get image bounds for proper mask positioning
+            function getImageBounds() {
+                const img = imageColor;
+                const rect = img.getBoundingClientRect();
+                return {
+                    left: rect.left,
+                    top: rect.top,
+                    width: rect.width,
+                    height: rect.height
+                };
+            }
+
+            // Update spotlight position
+            function updateSpotlight(screenX, screenY) {
+                const bounds = getImageBounds();
+
+                // Calculate position relative to the image
+                const relX = screenX - bounds.left;
+                const relY = screenY - bounds.top;
+
+                // Update CSS custom properties
+                root.style.setProperty('--mouse-x', `${relX}px`);
+                root.style.setProperty('--mouse-y', `${relY}px`);
+                root.style.setProperty('--mouse-x-screen', `${screenX}px`);
+                root.style.setProperty('--mouse-y-screen', `${screenY}px`);
+            }
+
+            // Animation loop for smooth cursor tracking
+            function animate() {
+                // Smooth interpolation
+                state.mouseX += (state.targetX - state.mouseX) * CONFIG.smoothing;
+                state.mouseY += (state.targetY - state.mouseY) * CONFIG.smoothing;
+
+                // Update spotlight position
+                updateSpotlight(state.mouseX, state.mouseY);
+
+                requestAnimationFrame(animate);
+            }
+
+            // Mouse event handlers
+            function handleMouseMove(e) {
+                state.targetX = e.clientX;
+                state.targetY = e.clientY;
+
+                if (!state.hasInteracted) {
+                    state.hasInteracted = true;
+                    hint.classList.add('hidden');
+                }
+            }
+
+            function handleMouseDown() {
+                cursor.classList.add('active');
+            }
+
+            function handleMouseUp() {
+                cursor.classList.remove('active');
+            }
+
+            function handleMouseEnter() {
+                state.isActive = true;
+                document.body.style.cursor = 'none';
+            }
+
+            function handleMouseLeave() {
+                state.isActive = false;
+                state.targetX = -1000;
+                state.targetY = -1000;
+            }
+
+            // Touch event handlers
+            function handleTouchMove(e) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                state.targetX = touch.clientX;
+                state.targetY = touch.clientY;
+
+                if (!state.hasInteracted) {
+                    state.hasInteracted = true;
+                    hint.classList.add('hidden');
+                }
+            }
+
+            function handleTouchStart(e) {
+                const touch = e.touches[0];
+                state.targetX = touch.clientX;
+                state.targetY = touch.clientY;
+                state.mouseX = touch.clientX;
+                state.mouseY = touch.clientY;
+                cursor.classList.add('active');
+
+                if (!state.hasInteracted) {
+                    state.hasInteracted = true;
+                    hint.classList.add('hidden');
+                }
+            }
+
+            function handleTouchEnd() {
+                cursor.classList.remove('active');
+                state.targetX = -1000;
+                state.targetY = -1000;
+            }
+
+            // Handle window resize
+            function handleResize() {
+                // Force recalculation of image bounds on next frame
+                updateSpotlight(state.mouseX, state.mouseY);
+            }
+
+            // Initialize
+            function init() {
+                // Mouse events
+                document.addEventListener('mousemove', handleMouseMove, { passive: true });
+                document.addEventListener('mousedown', handleMouseDown, { passive: true });
+                document.addEventListener('mouseup', handleMouseUp, { passive: true });
+                document.addEventListener('mouseenter', handleMouseEnter, { passive: true });
+                document.addEventListener('mouseleave', handleMouseLeave, { passive: true });
+
+                // Touch events
+                document.addEventListener('touchmove', handleTouchMove, { passive: false });
+                document.addEventListener('touchstart', handleTouchStart, { passive: true });
+                document.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+                // Resize event
+                window.addEventListener('resize', handleResize, { passive: true });
+
+                // Start animation loop
+                animate();
+
+                // Hide hint after a few seconds regardless
+                setTimeout(() => {
+                    hint.classList.add('hidden');
+                }, 5000);
+            }
+
+            // Wait for images to load
+            const images = document.querySelectorAll('img');
+            let loadedCount = 0;
+
+            images.forEach(img => {
+                if (img.complete) {
+                    loadedCount++;
+                    if (loadedCount === images.length) init();
+                } else {
+                    img.addEventListener('load', () => {
+                        loadedCount++;
+                        if (loadedCount === images.length) init();
+                    });
+                }
+            });
+
+            // Fallback init
+            if (loadedCount === images.length) init();
+        })();
+    </script>
+</body>
+</html>

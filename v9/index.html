@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULOCO - Animated Elements</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #2d9ea8;
+            overflow: hidden;
+        }
+
+        .artwork-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .artwork-wrapper {
+            position: relative;
+            animation: breathing 6s ease-in-out infinite;
+            cursor: pointer;
+        }
+
+        .artwork {
+            max-width: 90vw;
+            max-height: 90vh;
+            object-fit: contain;
+            display: block;
+            transition: filter 0.5s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Breathing animation */
+        @keyframes breathing {
+            0%, 100% {
+                transform: scale(0.99);
+            }
+            50% {
+                transform: scale(1.01);
+            }
+        }
+
+        /* Hover color pulse */
+        .artwork-wrapper:hover .artwork {
+            filter: saturate(1.2) brightness(1.05);
+        }
+
+        /* Lightning crackle overlay */
+        .lightning-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+            mix-blend-mode: screen;
+        }
+
+        .lightning-glow {
+            position: absolute;
+            top: 38%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40%;
+            height: 15%;
+            background: radial-gradient(ellipse at center,
+                rgba(255, 255, 255, 0.4) 0%,
+                rgba(200, 220, 255, 0.2) 30%,
+                transparent 70%);
+            animation: lightningCrackle 0.15s infinite alternate;
+            filter: blur(8px);
+        }
+
+        @keyframes lightningCrackle {
+            0% {
+                opacity: 0.3;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            25% {
+                opacity: 0.8;
+                transform: translate(-50%, -50%) scale(1.1);
+            }
+            50% {
+                opacity: 0.4;
+                transform: translate(-50%, -50%) scale(0.95);
+            }
+            75% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.05);
+            }
+            100% {
+                opacity: 0.5;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        /* Secondary lightning flicker */
+        .lightning-spark {
+            position: absolute;
+            top: 38%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 35%;
+            height: 12%;
+            background: radial-gradient(ellipse at center,
+                rgba(255, 255, 255, 0.6) 0%,
+                transparent 50%);
+            animation: sparkle 0.08s infinite;
+            filter: blur(4px);
+        }
+
+        @keyframes sparkle {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 0.9; }
+        }
+
+        /* Diamond glow */
+        .diamond-glow {
+            position: absolute;
+            top: 44%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8%;
+            height: 6%;
+            background: radial-gradient(ellipse at center,
+                rgba(45, 200, 220, 0.8) 0%,
+                rgba(45, 158, 168, 0.4) 40%,
+                transparent 70%);
+            animation: diamondPulse 3s ease-in-out infinite;
+            filter: blur(10px);
+        }
+
+        @keyframes diamondPulse {
+            0%, 100% {
+                opacity: 0.5;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.3);
+            }
+        }
+
+        /* Golden orb glow */
+        .orb-glow {
+            position: absolute;
+            top: 23%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6%;
+            height: 5%;
+            background: radial-gradient(circle at center,
+                rgba(255, 215, 100, 0.9) 0%,
+                rgba(255, 180, 50, 0.5) 40%,
+                transparent 70%);
+            animation: orbPulse 4s ease-in-out infinite;
+            filter: blur(8px);
+        }
+
+        @keyframes orbPulse {
+            0%, 100% {
+                opacity: 0.6;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.4);
+            }
+        }
+
+        /* Eye glows - left side */
+        .eye-glow-left {
+            position: absolute;
+            top: 68%;
+            left: 32%;
+            transform: translate(-50%, -50%);
+            width: 12%;
+            height: 8%;
+            background: radial-gradient(ellipse at center,
+                rgba(255, 220, 100, 0.6) 0%,
+                transparent 60%);
+            animation: eyeGlow 2.5s ease-in-out infinite;
+            filter: blur(12px);
+        }
+
+        /* Eye glows - right side */
+        .eye-glow-right {
+            position: absolute;
+            top: 68%;
+            left: 68%;
+            transform: translate(-50%, -50%);
+            width: 12%;
+            height: 8%;
+            background: radial-gradient(ellipse at center,
+                rgba(255, 220, 100, 0.6) 0%,
+                transparent 60%);
+            animation: eyeGlow 2.5s ease-in-out infinite 0.3s;
+            filter: blur(12px);
+        }
+
+        @keyframes eyeGlow {
+            0%, 100% {
+                opacity: 0.3;
+            }
+            50% {
+                opacity: 0.8;
+            }
+        }
+
+        /* Top eye/crown glow */
+        .crown-glow {
+            position: absolute;
+            top: 5%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8%;
+            height: 5%;
+            background: radial-gradient(ellipse at center,
+                rgba(200, 100, 255, 0.7) 0%,
+                rgba(150, 50, 200, 0.3) 50%,
+                transparent 70%);
+            animation: crownPulse 3.5s ease-in-out infinite;
+            filter: blur(10px);
+        }
+
+        @keyframes crownPulse {
+            0%, 100% {
+                opacity: 0.4;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% {
+                opacity: 0.9;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+        }
+
+        /* Shimmer effect */
+        .shimmer {
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.03) 45%,
+                rgba(255, 255, 255, 0.08) 50%,
+                rgba(255, 255, 255, 0.03) 55%,
+                transparent 100%
+            );
+            animation: shimmerMove 8s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        @keyframes shimmerMove {
+            0% {
+                left: -50%;
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                left: 150%;
+                opacity: 0;
+            }
+        }
+
+        /* Secondary shimmer with different timing */
+        .shimmer-secondary {
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 30%;
+            height: 100%;
+            background: linear-gradient(
+                120deg,
+                transparent 0%,
+                rgba(200, 230, 255, 0.02) 45%,
+                rgba(200, 230, 255, 0.05) 50%,
+                rgba(200, 230, 255, 0.02) 55%,
+                transparent 100%
+            );
+            animation: shimmerMove 12s ease-in-out infinite 4s;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        /* Ambient particle effect */
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 4;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            animation: floatUp 6s ease-in-out infinite;
+            filter: blur(1px);
+        }
+
+        @keyframes floatUp {
+            0% {
+                transform: translateY(100%) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.8;
+                transform: translateY(90%) scale(1);
+            }
+            90% {
+                opacity: 0.8;
+            }
+            100% {
+                transform: translateY(-20%) scale(0.5);
+                opacity: 0;
+            }
+        }
+
+        /* Hover intensify effect */
+        .artwork-wrapper:hover .lightning-glow,
+        .artwork-wrapper:hover .lightning-spark {
+            animation-duration: 0.08s;
+            filter: blur(6px) brightness(1.3);
+        }
+
+        .artwork-wrapper:hover .diamond-glow,
+        .artwork-wrapper:hover .orb-glow {
+            filter: blur(6px) brightness(1.5);
+        }
+
+        /* Vignette overlay for depth */
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(ellipse at center,
+                transparent 40%,
+                rgba(0, 50, 60, 0.3) 100%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Subtle ambient color shift for the whole scene */
+        .ambient-light {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at 50% 40%,
+                rgba(100, 200, 255, 0.05) 0%,
+                transparent 50%);
+            animation: ambientShift 10s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes ambientShift {
+            0%, 100% {
+                opacity: 0.5;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-light"></div>
+
+    <div class="artwork-container">
+        <div class="artwork-wrapper">
+            <img src="uloco.png" alt="ULOCO Mystical Artwork" class="artwork">
+
+            <!-- Lightning effects -->
+            <div class="lightning-overlay">
+                <div class="lightning-glow"></div>
+                <div class="lightning-spark"></div>
+            </div>
+
+            <!-- Glow effects for key elements -->
+            <div class="diamond-glow"></div>
+            <div class="orb-glow"></div>
+            <div class="eye-glow-left"></div>
+            <div class="eye-glow-right"></div>
+            <div class="crown-glow"></div>
+
+            <!-- Shimmer effects -->
+            <div class="shimmer"></div>
+            <div class="shimmer-secondary"></div>
+
+            <!-- Floating particles -->
+            <div class="particles" id="particles"></div>
+        </div>
+    </div>
+
+    <div class="vignette"></div>
+
+    <script>
+        // Generate floating particles
+        const particlesContainer = document.getElementById('particles');
+        const particleCount = 15;
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+
+            // Random position
+            particle.style.left = `${Math.random() * 100}%`;
+
+            // Random delay
+            particle.style.animationDelay = `${Math.random() * 6}s`;
+
+            // Random duration variation
+            particle.style.animationDuration = `${5 + Math.random() * 4}s`;
+
+            // Random size
+            const size = 2 + Math.random() * 4;
+            particle.style.width = `${size}px`;
+            particle.style.height = `${size}px`;
+
+            // Random colors (white, cyan, gold)
+            const colors = [
+                'rgba(255, 255, 255, 0.6)',
+                'rgba(100, 220, 255, 0.6)',
+                'rgba(255, 215, 100, 0.5)',
+                'rgba(200, 150, 255, 0.5)'
+            ];
+            particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+
+            particlesContainer.appendChild(particle);
+        }
+
+        // Add random lightning intensity bursts
+        const lightningGlow = document.querySelector('.lightning-glow');
+        const lightningSpark = document.querySelector('.lightning-spark');
+
+        function randomLightningBurst() {
+            const intensity = 0.5 + Math.random() * 0.5;
+            lightningGlow.style.opacity = intensity;
+            lightningSpark.style.opacity = intensity * 1.2;
+
+            // Reset after brief moment
+            setTimeout(() => {
+                lightningGlow.style.opacity = '';
+                lightningSpark.style.opacity = '';
+            }, 100);
+
+            // Schedule next burst
+            setTimeout(randomLightningBurst, 1000 + Math.random() * 3000);
+        }
+
+        // Start random bursts after a delay
+        setTimeout(randomLightningBurst, 2000);
+
+        // Add subtle mouse parallax effect
+        const artworkWrapper = document.querySelector('.artwork-wrapper');
+
+        document.addEventListener('mousemove', (e) => {
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            const moveX = (e.clientX - centerX) / centerX * 5;
+            const moveY = (e.clientY - centerY) / centerY * 5;
+
+            artworkWrapper.style.transform = `translate(${moveX}px, ${moveY}px)`;
+        });
+
+        // Reset position when mouse leaves
+        document.addEventListener('mouseleave', () => {
+            artworkWrapper.style.transform = 'translate(0, 0)';
+        });
+    </script>
+</body>
+</html>

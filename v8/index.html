@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULOCO - Parallax Depth</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .parallax-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+        }
+
+        .parallax-layer {
+            position: absolute;
+            width: auto;
+            height: 70vh;
+            max-height: 600px;
+            will-change: transform;
+            transition: none;
+        }
+
+        .parallax-layer img {
+            width: auto;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        /* Layer 0 - Deepest background */
+        .layer-0 {
+            filter: blur(5px) brightness(0.4);
+            opacity: 0.5;
+            transform: scale(0.92);
+            z-index: 1;
+        }
+
+        /* Layer 1 - Background */
+        .layer-1 {
+            filter: blur(3px) brightness(0.6);
+            opacity: 0.6;
+            transform: scale(0.95);
+            z-index: 2;
+        }
+
+        /* Layer 2 - Mid-back */
+        .layer-2 {
+            filter: blur(2px) brightness(0.75);
+            opacity: 0.75;
+            transform: scale(0.98);
+            z-index: 3;
+        }
+
+        /* Layer 3 - Mid-front */
+        .layer-3 {
+            filter: blur(1px) brightness(0.9);
+            opacity: 0.9;
+            transform: scale(1);
+            z-index: 4;
+        }
+
+        /* Layer 4 - Foreground (main) */
+        .layer-4 {
+            filter: none;
+            opacity: 1;
+            transform: scale(1.02);
+            z-index: 5;
+        }
+
+        /* Subtle vignette overlay */
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: radial-gradient(
+                ellipse at center,
+                transparent 40%,
+                rgba(0, 0, 0, 0.4) 100%
+            );
+            z-index: 100;
+        }
+
+        /* Ambient glow effect */
+        .ambient-glow {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60%;
+            height: 60%;
+            background: radial-gradient(
+                ellipse at center,
+                rgba(40, 180, 180, 0.08) 0%,
+                transparent 70%
+            );
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(40px);
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-glow"></div>
+
+    <div class="parallax-container" id="parallaxContainer">
+        <div class="parallax-layer layer-0" data-depth="0.1">
+            <img src="uloco.png" alt="ULOCO">
+        </div>
+        <div class="parallax-layer layer-1" data-depth="0.2">
+            <img src="uloco.png" alt="ULOCO">
+        </div>
+        <div class="parallax-layer layer-2" data-depth="0.35">
+            <img src="uloco.png" alt="ULOCO">
+        </div>
+        <div class="parallax-layer layer-3" data-depth="0.55">
+            <img src="uloco.png" alt="ULOCO">
+        </div>
+        <div class="parallax-layer layer-4" data-depth="0.8">
+            <img src="uloco.png" alt="ULOCO">
+        </div>
+    </div>
+
+    <div class="vignette"></div>
+
+    <script>
+        (function() {
+            // Configuration
+            const config = {
+                maxMovement: [8, 16, 25, 35, 45], // Max pixel movement per layer
+                lerpFactor: 0.08, // Smoothing factor (lower = smoother)
+                rotationMultiplier: 0.3 // Subtle rotation effect
+            };
+
+            // State
+            const state = {
+                mouseX: 0,
+                mouseY: 0,
+                targetX: 0,
+                targetY: 0,
+                currentX: 0,
+                currentY: 0,
+                isActive: true
+            };
+
+            // Get all layers
+            const layers = document.querySelectorAll('.parallax-layer');
+            const container = document.getElementById('parallaxContainer');
+
+            // Linear interpolation function
+            function lerp(start, end, factor) {
+                return start + (end - start) * factor;
+            }
+
+            // Handle mouse movement
+            function handleMouseMove(e) {
+                const rect = container.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+
+                // Calculate offset from center (-1 to 1)
+                state.targetX = (e.clientX - centerX) / centerX;
+                state.targetY = (e.clientY - centerY) / centerY;
+            }
+
+            // Handle touch movement
+            function handleTouchMove(e) {
+                if (e.touches.length > 0) {
+                    const touch = e.touches[0];
+                    const rect = container.getBoundingClientRect();
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+
+                    state.targetX = (touch.clientX - centerX) / centerX;
+                    state.targetY = (touch.clientY - centerY) / centerY;
+                }
+            }
+
+            // Handle mouse leave - smoothly return to center
+            function handleMouseLeave() {
+                state.targetX = 0;
+                state.targetY = 0;
+            }
+
+            // Device orientation for mobile
+            function handleOrientation(e) {
+                if (e.gamma !== null && e.beta !== null) {
+                    // gamma: left/right tilt (-90 to 90)
+                    // beta: front/back tilt (-180 to 180)
+                    state.targetX = Math.max(-1, Math.min(1, e.gamma / 30));
+                    state.targetY = Math.max(-1, Math.min(1, (e.beta - 45) / 30));
+                }
+            }
+
+            // Animation loop
+            function animate() {
+                if (!state.isActive) return;
+
+                // Smoothly interpolate current position towards target
+                state.currentX = lerp(state.currentX, state.targetX, config.lerpFactor);
+                state.currentY = lerp(state.currentY, state.targetY, config.lerpFactor);
+
+                // Apply transforms to each layer
+                layers.forEach((layer, index) => {
+                    const maxMove = config.maxMovement[index];
+                    const depth = parseFloat(layer.dataset.depth);
+
+                    // Calculate movement (back layers move opposite for parallax depth)
+                    // Invert direction for depth illusion
+                    const moveX = state.currentX * maxMove;
+                    const moveY = state.currentY * maxMove;
+
+                    // Subtle rotation based on position
+                    const rotateX = -state.currentY * config.rotationMultiplier * depth;
+                    const rotateY = state.currentX * config.rotationMultiplier * depth;
+
+                    // Get base scale from CSS
+                    const baseScales = [0.92, 0.95, 0.98, 1, 1.02];
+                    const baseScale = baseScales[index];
+
+                    // Apply transform
+                    layer.style.transform = `
+                        translate3d(${moveX}px, ${moveY}px, 0)
+                        scale(${baseScale})
+                        rotateX(${rotateX}deg)
+                        rotateY(${rotateY}deg)
+                    `;
+                });
+
+                requestAnimationFrame(animate);
+            }
+
+            // Event listeners
+            document.addEventListener('mousemove', handleMouseMove, { passive: true });
+            document.addEventListener('touchmove', handleTouchMove, { passive: true });
+            document.addEventListener('mouseleave', handleMouseLeave);
+
+            // Optional: device orientation for mobile
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', handleOrientation, { passive: true });
+            }
+
+            // Visibility change handling
+            document.addEventListener('visibilitychange', () => {
+                state.isActive = !document.hidden;
+                if (state.isActive) {
+                    requestAnimationFrame(animate);
+                }
+            });
+
+            // Start animation
+            animate();
+
+            // Add subtle breathing animation when idle
+            let idleTimer = null;
+            let breathePhase = 0;
+
+            function checkIdle() {
+                clearTimeout(idleTimer);
+                idleTimer = setTimeout(() => {
+                    // Start subtle breathing when idle
+                    breathe();
+                }, 3000);
+            }
+
+            function breathe() {
+                if (Math.abs(state.targetX) < 0.01 && Math.abs(state.targetY) < 0.01) {
+                    breathePhase += 0.02;
+                    const breatheAmount = Math.sin(breathePhase) * 0.05;
+                    state.targetX = breatheAmount;
+                    state.targetY = Math.cos(breathePhase * 0.7) * 0.03;
+                    requestAnimationFrame(breathe);
+                }
+            }
+
+            document.addEventListener('mousemove', checkIdle, { passive: true });
+            checkIdle(); // Start idle check
+        })();
+    </script>
+</body>
+</html>

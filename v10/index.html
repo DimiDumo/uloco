@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULOCO - Chromatic Glitch</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+        }
+
+        .container {
+            position: relative;
+            width: 90vmin;
+            height: 90vmin;
+            max-width: 600px;
+            max-height: 600px;
+        }
+
+        /* Main image container with chromatic aberration */
+        .glitch-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .glitch-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* Base image */
+        .glitch-img.base {
+            z-index: 1;
+        }
+
+        /* Red channel - offset left */
+        .glitch-img.red {
+            z-index: 2;
+            mix-blend-mode: screen;
+            filter: url(#red-channel);
+            transform: translate(-3px, 0);
+            opacity: 0.8;
+            animation: redShift 0.05s infinite steps(1);
+        }
+
+        /* Blue channel - offset right */
+        .glitch-img.blue {
+            z-index: 3;
+            mix-blend-mode: screen;
+            filter: url(#blue-channel);
+            transform: translate(3px, 0);
+            opacity: 0.8;
+            animation: blueShift 0.07s infinite steps(1);
+        }
+
+        /* Hover intensifies chromatic aberration */
+        .glitch-wrapper:hover .glitch-img.red {
+            transform: translate(-6px, 1px);
+            opacity: 0.9;
+        }
+
+        .glitch-wrapper:hover .glitch-img.blue {
+            transform: translate(6px, -1px);
+            opacity: 0.9;
+        }
+
+        /* Scan lines overlay */
+        .scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15) 0px,
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            animation: scanlineMove 8s linear infinite;
+        }
+
+        /* Noise overlay */
+        .noise {
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            z-index: 11;
+            pointer-events: none;
+            opacity: 0.03;
+            animation: noiseAnim 0.2s steps(10) infinite;
+        }
+
+        /* Glitch slices container */
+        .glitch-slices {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        .glitch-slices.active {
+            opacity: 1;
+        }
+
+        .glitch-slice {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .glitch-slice img {
+            position: absolute;
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        /* Flicker overlay */
+        .flicker {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 12;
+            pointer-events: none;
+            background: white;
+            opacity: 0;
+            mix-blend-mode: overlay;
+        }
+
+        .flicker.active {
+            animation: flickerAnim 0.1s steps(2);
+        }
+
+        /* Vignette effect */
+        .vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 13;
+            pointer-events: none;
+            background: radial-gradient(
+                ellipse at center,
+                transparent 40%,
+                rgba(0, 0, 0, 0.6) 100%
+            );
+        }
+
+        /* CRT curve effect */
+        .crt-curve {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 14;
+            pointer-events: none;
+            border-radius: 8px;
+            box-shadow:
+                inset 0 0 60px rgba(0, 255, 255, 0.05),
+                inset 0 0 120px rgba(255, 0, 255, 0.03);
+        }
+
+        /* Keyframe animations */
+        @keyframes redShift {
+            0%, 100% { transform: translate(-3px, 0); }
+            25% { transform: translate(-2px, 0); }
+            50% { transform: translate(-4px, 0); }
+            75% { transform: translate(-3px, 1px); }
+        }
+
+        @keyframes blueShift {
+            0%, 100% { transform: translate(3px, 0); }
+            33% { transform: translate(4px, 0); }
+            66% { transform: translate(2px, -1px); }
+        }
+
+        @keyframes scanlineMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 100px; }
+        }
+
+        @keyframes noiseAnim {
+            0% { transform: translate(0, 0); }
+            10% { transform: translate(-5%, -5%); }
+            20% { transform: translate(5%, 10%); }
+            30% { transform: translate(-10%, 5%); }
+            40% { transform: translate(10%, -5%); }
+            50% { transform: translate(-5%, 10%); }
+            60% { transform: translate(5%, -10%); }
+            70% { transform: translate(-10%, -5%); }
+            80% { transform: translate(10%, 5%); }
+            90% { transform: translate(-5%, -10%); }
+            100% { transform: translate(0, 0); }
+        }
+
+        @keyframes flickerAnim {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 0.1; }
+        }
+
+        /* Glitch text effect for potential title */
+        .glitch-title {
+            position: absolute;
+            bottom: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 1.5rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+
+        .glitch-title::before,
+        .glitch-title::after {
+            content: attr(data-text);
+            position: absolute;
+            left: 0;
+            width: 100%;
+        }
+
+        .glitch-title::before {
+            color: #ff0000;
+            left: -2px;
+            animation: glitchText 2s infinite steps(1);
+        }
+
+        .glitch-title::after {
+            color: #00ffff;
+            left: 2px;
+            animation: glitchText 2s infinite steps(1) reverse;
+        }
+
+        @keyframes glitchText {
+            0%, 100% { clip-path: inset(0 0 90% 0); }
+            10% { clip-path: inset(40% 0 30% 0); }
+            20% { clip-path: inset(80% 0 5% 0); }
+            30% { clip-path: inset(10% 0 70% 0); }
+            40% { clip-path: inset(50% 0 20% 0); }
+            50% { clip-path: inset(20% 0 60% 0); }
+            60% { clip-path: inset(70% 0 15% 0); }
+            70% { clip-path: inset(5% 0 85% 0); }
+            80% { clip-path: inset(60% 0 25% 0); }
+            90% { clip-path: inset(30% 0 50% 0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- SVG filters for color channel separation -->
+    <svg style="position: absolute; width: 0; height: 0;">
+        <defs>
+            <!-- Red channel filter -->
+            <filter id="red-channel">
+                <feColorMatrix type="matrix" values="
+                    1 0 0 0 0
+                    0 0 0 0 0
+                    0 0 0 0 0
+                    0 0 0 1 0
+                "/>
+            </filter>
+            <!-- Blue channel filter -->
+            <filter id="blue-channel">
+                <feColorMatrix type="matrix" values="
+                    0 0 0 0 0
+                    0 0 0 0 0
+                    0 0 1 0 0
+                    0 0 0 1 0
+                "/>
+            </filter>
+            <!-- Green channel filter (optional) -->
+            <filter id="green-channel">
+                <feColorMatrix type="matrix" values="
+                    0 0 0 0 0
+                    0 1 0 0 0
+                    0 0 0 0 0
+                    0 0 0 1 0
+                "/>
+            </filter>
+        </defs>
+    </svg>
+
+    <div class="container">
+        <div class="glitch-wrapper" id="glitchWrapper">
+            <!-- Base image -->
+            <img src="uloco.png" alt="ULOCO" class="glitch-img base">
+
+            <!-- Red channel (offset) -->
+            <img src="uloco.png" alt="" class="glitch-img red" aria-hidden="true">
+
+            <!-- Blue channel (offset) -->
+            <img src="uloco.png" alt="" class="glitch-img blue" aria-hidden="true">
+
+            <!-- Glitch slices container -->
+            <div class="glitch-slices" id="glitchSlices"></div>
+
+            <!-- Scan lines -->
+            <div class="scanlines"></div>
+
+            <!-- Noise canvas -->
+            <canvas class="noise" id="noiseCanvas"></canvas>
+
+            <!-- Flicker overlay -->
+            <div class="flicker" id="flicker"></div>
+
+            <!-- Vignette -->
+            <div class="vignette"></div>
+
+            <!-- CRT curve effect -->
+            <div class="crt-curve"></div>
+        </div>
+    </div>
+
+    <script>
+        // Noise generator
+        const noiseCanvas = document.getElementById('noiseCanvas');
+        const noiseCtx = noiseCanvas.getContext('2d');
+
+        function resizeNoiseCanvas() {
+            const container = document.querySelector('.container');
+            noiseCanvas.width = container.offsetWidth * 2;
+            noiseCanvas.height = container.offsetHeight * 2;
+        }
+
+        function generateNoise() {
+            const imageData = noiseCtx.createImageData(noiseCanvas.width, noiseCanvas.height);
+            const data = imageData.data;
+
+            for (let i = 0; i < data.length; i += 4) {
+                const value = Math.random() * 255;
+                data[i] = value;     // R
+                data[i + 1] = value; // G
+                data[i + 2] = value; // B
+                data[i + 3] = 255;   // A
+            }
+
+            noiseCtx.putImageData(imageData, 0, 0);
+        }
+
+        // Initialize noise
+        resizeNoiseCanvas();
+        generateNoise();
+
+        // Animate noise
+        setInterval(generateNoise, 50);
+
+        // Glitch slices effect
+        const glitchSlices = document.getElementById('glitchSlices');
+        const wrapper = document.getElementById('glitchWrapper');
+
+        function createGlitchSlices() {
+            glitchSlices.innerHTML = '';
+            const numSlices = 5 + Math.floor(Math.random() * 5);
+            const containerHeight = wrapper.offsetHeight;
+
+            for (let i = 0; i < numSlices; i++) {
+                const slice = document.createElement('div');
+                slice.className = 'glitch-slice';
+
+                const sliceHeight = 5 + Math.random() * 30;
+                const sliceTop = Math.random() * (containerHeight - sliceHeight);
+                const offsetX = (Math.random() - 0.5) * 40;
+
+                slice.style.top = sliceTop + 'px';
+                slice.style.height = sliceHeight + 'px';
+
+                const img = document.createElement('img');
+                img.src = 'uloco.png';
+                img.style.top = -sliceTop + 'px';
+                img.style.left = offsetX + 'px';
+                img.style.height = containerHeight + 'px';
+
+                slice.appendChild(img);
+                glitchSlices.appendChild(slice);
+            }
+        }
+
+        function triggerGlitch() {
+            createGlitchSlices();
+            glitchSlices.classList.add('active');
+
+            // Random glitch duration
+            const duration = 50 + Math.random() * 150;
+
+            setTimeout(() => {
+                glitchSlices.classList.remove('active');
+            }, duration);
+        }
+
+        // Flicker effect
+        const flicker = document.getElementById('flicker');
+
+        function triggerFlicker() {
+            flicker.classList.add('active');
+            setTimeout(() => {
+                flicker.classList.remove('active');
+            }, 100);
+        }
+
+        // Periodic glitch triggers
+        function scheduleGlitch() {
+            const delay = 2000 + Math.random() * 4000; // 2-6 seconds
+            setTimeout(() => {
+                triggerGlitch();
+
+                // Sometimes trigger multiple rapid glitches
+                if (Math.random() > 0.6) {
+                    setTimeout(triggerGlitch, 100);
+                    if (Math.random() > 0.5) {
+                        setTimeout(triggerGlitch, 200);
+                    }
+                }
+
+                scheduleGlitch();
+            }, delay);
+        }
+
+        function scheduleFlicker() {
+            const delay = 3000 + Math.random() * 7000; // 3-10 seconds
+            setTimeout(() => {
+                triggerFlicker();
+
+                // Sometimes double flicker
+                if (Math.random() > 0.7) {
+                    setTimeout(triggerFlicker, 150);
+                }
+
+                scheduleFlicker();
+            }, delay);
+        }
+
+        // Start periodic effects
+        scheduleGlitch();
+        scheduleFlicker();
+
+        // Hover triggers more intense glitching
+        let hoverGlitchInterval = null;
+
+        wrapper.addEventListener('mouseenter', () => {
+            // Trigger immediate glitch on hover
+            triggerGlitch();
+
+            // More frequent glitches while hovering
+            hoverGlitchInterval = setInterval(() => {
+                if (Math.random() > 0.5) {
+                    triggerGlitch();
+                }
+            }, 300);
+        });
+
+        wrapper.addEventListener('mouseleave', () => {
+            if (hoverGlitchInterval) {
+                clearInterval(hoverGlitchInterval);
+                hoverGlitchInterval = null;
+            }
+        });
+
+        // Handle resize
+        window.addEventListener('resize', resizeNoiseCanvas);
+
+        // Intensify chromatic aberration randomly
+        const redImg = document.querySelector('.glitch-img.red');
+        const blueImg = document.querySelector('.glitch-img.blue');
+
+        function randomChromaticShift() {
+            const intensity = Math.random() > 0.8 ? 2 : 1;
+            const redOffset = -3 * intensity + (Math.random() - 0.5) * 2;
+            const blueOffset = 3 * intensity + (Math.random() - 0.5) * 2;
+
+            redImg.style.transform = `translate(${redOffset}px, ${(Math.random() - 0.5) * 2}px)`;
+            blueImg.style.transform = `translate(${blueOffset}px, ${(Math.random() - 0.5) * 2}px)`;
+
+            // Reset after brief moment
+            setTimeout(() => {
+                redImg.style.transform = '';
+                blueImg.style.transform = '';
+            }, 100);
+        }
+
+        // Occasional chromatic shift
+        setInterval(() => {
+            if (Math.random() > 0.7) {
+                randomChromaticShift();
+            }
+        }, 500);
+
+        // Add subtle color shift to entire wrapper occasionally
+        function colorShift() {
+            const hue = Math.random() * 10 - 5;
+            wrapper.style.filter = `hue-rotate(${hue}deg)`;
+
+            setTimeout(() => {
+                wrapper.style.filter = '';
+            }, 150);
+        }
+
+        setInterval(() => {
+            if (Math.random() > 0.85) {
+                colorShift();
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULOCO - Progressive Reveal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --reveal-progress: 0;
+            --brightness: 0;
+            --clip-y: 0%;
+            --glow-opacity: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: #0a0a0a;
+            min-height: 350vh;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Fixed container for the artwork */
+        .artwork-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+
+        /* The artwork wrapper with reveal effect */
+        .artwork-wrapper {
+            position: relative;
+            max-width: 90vmin;
+            max-height: 80vh;
+        }
+
+        /* Base image - hidden version */
+        .artwork-base {
+            width: 100%;
+            height: auto;
+            max-height: 80vh;
+            object-fit: contain;
+            filter: brightness(0);
+            opacity: 0.3;
+        }
+
+        /* Revealed image with clip-path */
+        .artwork-reveal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: auto;
+            max-height: 80vh;
+            object-fit: contain;
+            clip-path: inset(0 0 calc(100% - var(--clip-y)) 0);
+            filter: brightness(calc(0.3 + var(--brightness) * 0.7));
+            transition: filter 0.1s ease-out;
+        }
+
+        /* Glow effect behind the image */
+        .artwork-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120%;
+            height: 120%;
+            background: radial-gradient(ellipse at center,
+                rgba(64, 224, 208, calc(0.3 * var(--glow-opacity))) 0%,
+                rgba(147, 112, 219, calc(0.2 * var(--glow-opacity))) 30%,
+                transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Scan line effect during reveal */
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: -10%;
+            width: 120%;
+            height: 4px;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                rgba(64, 224, 208, 0.8) 20%,
+                rgba(255, 255, 255, 1) 50%,
+                rgba(147, 112, 219, 0.8) 80%,
+                transparent 100%);
+            box-shadow: 0 0 20px rgba(64, 224, 208, 0.8),
+                        0 0 40px rgba(147, 112, 219, 0.6);
+            transform: translateY(calc(var(--clip-y) - 2px));
+            opacity: var(--scan-opacity, 1);
+            transition: opacity 0.3s ease;
+            z-index: 10;
+        }
+
+        /* Progress indicator on the side */
+        .progress-track {
+            position: fixed;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            z-index: 100;
+        }
+
+        .progress-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(to top, #40E0D0, #9370DB);
+            border-radius: 2px;
+            height: calc(var(--reveal-progress) * 100%);
+            transition: height 0.1s ease-out;
+            box-shadow: 0 0 10px rgba(64, 224, 208, 0.5);
+        }
+
+        .progress-markers {
+            position: absolute;
+            left: -8px;
+            top: 0;
+            height: 100%;
+            width: 20px;
+        }
+
+        .progress-marker {
+            position: absolute;
+            left: 0;
+            width: 20px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .progress-marker:nth-child(1) { top: 0%; }
+        .progress-marker:nth-child(2) { top: 25%; }
+        .progress-marker:nth-child(3) { top: 50%; }
+        .progress-marker:nth-child(4) { top: 75%; }
+        .progress-marker:nth-child(5) { top: 100%; }
+
+        .progress-label {
+            position: absolute;
+            right: 15px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            transform: translateY(-50%);
+            white-space: nowrap;
+        }
+
+        .progress-label.start { top: 100%; }
+        .progress-label.end { top: 0%; }
+
+        /* Scroll indicator */
+        .scroll-indicator {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 100;
+            opacity: var(--indicator-opacity, 1);
+            transition: opacity 0.5s ease;
+        }
+
+        .scroll-text {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .scroll-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .scroll-arrow span {
+            display: block;
+            width: 20px;
+            height: 20px;
+            border-right: 2px solid rgba(255, 255, 255, 0.5);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+            transform: rotate(45deg);
+            animation: scrollArrow 2s infinite;
+        }
+
+        .scroll-arrow span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .scroll-arrow span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes scrollArrow {
+            0%, 100% {
+                opacity: 0;
+                transform: rotate(45deg) translate(-5px, -5px);
+            }
+            50% {
+                opacity: 1;
+                transform: rotate(45deg) translate(5px, 5px);
+            }
+        }
+
+        /* Completion message */
+        .completion-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease;
+        }
+
+        .completion-message.visible {
+            opacity: 1;
+        }
+
+        .completion-title {
+            font-size: clamp(24px, 5vw, 48px);
+            font-weight: 300;
+            color: white;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(64, 224, 208, 0.5);
+        }
+
+        .completion-subtitle {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 3px;
+        }
+
+        /* Section labels that appear during scroll */
+        .section-labels {
+            position: fixed;
+            left: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 100;
+        }
+
+        .section-label {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin: 30px 0;
+            transition: all 0.3s ease;
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .section-label::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .section-label.active {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .section-label.active::before {
+            width: 15px;
+            background: #40E0D0;
+            box-shadow: 0 0 10px rgba(64, 224, 208, 0.5);
+        }
+
+        /* Ambient particles */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(64, 224, 208, 0.6);
+            border-radius: 50%;
+            opacity: 0;
+            animation: particleFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes particleFloat {
+            0%, 100% {
+                opacity: 0;
+                transform: translateY(0) scale(0);
+            }
+            50% {
+                opacity: 1;
+                transform: translateY(-100px) scale(1);
+            }
+        }
+
+        /* Percentage display */
+        .percentage-display {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 3px;
+            z-index: 100;
+        }
+
+        .percentage-value {
+            font-size: 24px;
+            font-weight: 200;
+            color: white;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .progress-track {
+                right: 15px;
+                height: 150px;
+            }
+
+            .section-labels {
+                display: none;
+            }
+
+            .progress-label {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Percentage display -->
+    <div class="percentage-display">
+        <span class="percentage-value">0</span>% revealed
+    </div>
+
+    <!-- Section labels -->
+    <div class="section-labels">
+        <div class="section-label active" data-threshold="0">Crown</div>
+        <div class="section-label" data-threshold="0.25">Visage</div>
+        <div class="section-label" data-threshold="0.5">Spirit</div>
+        <div class="section-label" data-threshold="0.75">Foundation</div>
+    </div>
+
+    <!-- Progress indicator -->
+    <div class="progress-track">
+        <div class="progress-fill"></div>
+        <div class="progress-markers">
+            <div class="progress-marker"></div>
+            <div class="progress-marker"></div>
+            <div class="progress-marker"></div>
+            <div class="progress-marker"></div>
+            <div class="progress-marker"></div>
+        </div>
+        <div class="progress-label start">Start</div>
+        <div class="progress-label end">Complete</div>
+    </div>
+
+    <!-- Main artwork container -->
+    <div class="artwork-container">
+        <div class="artwork-wrapper">
+            <div class="artwork-glow"></div>
+            <img src="uloco.png" alt="ULOCO Artwork" class="artwork-base">
+            <img src="uloco.png" alt="ULOCO Artwork Revealed" class="artwork-reveal">
+            <div class="scan-line"></div>
+        </div>
+    </div>
+
+    <!-- Particles container -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Completion message -->
+    <div class="completion-message">
+        <div class="completion-title">Unveiled</div>
+        <div class="completion-subtitle">Artwork by ULOCO</div>
+    </div>
+
+    <!-- Scroll indicator -->
+    <div class="scroll-indicator">
+        <div class="scroll-text">Scroll to reveal</div>
+        <div class="scroll-arrow">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const root = document.documentElement;
+        const scrollIndicator = document.querySelector('.scroll-indicator');
+        const completionMessage = document.querySelector('.completion-message');
+        const percentageValue = document.querySelector('.percentage-value');
+        const sectionLabels = document.querySelectorAll('.section-label');
+        const particlesContainer = document.getElementById('particles');
+        const scanLine = document.querySelector('.scan-line');
+
+        // Create ambient particles
+        function createParticles() {
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 3 + 's';
+                particle.style.animationDuration = (2 + Math.random() * 2) + 's';
+
+                // Random colors
+                const colors = [
+                    'rgba(64, 224, 208, 0.6)',
+                    'rgba(147, 112, 219, 0.6)',
+                    'rgba(255, 100, 100, 0.4)',
+                    'rgba(100, 255, 150, 0.4)'
+                ];
+                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // Calculate scroll progress (0 to 1)
+        function getScrollProgress() {
+            const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const scrollTop = window.scrollY;
+            return Math.min(Math.max(scrollTop / scrollHeight, 0), 1);
+        }
+
+        // Easing function for smoother reveal
+        function easeOutQuart(x) {
+            return 1 - Math.pow(1 - x, 4);
+        }
+
+        // Update reveal based on scroll
+        function updateReveal() {
+            const progress = getScrollProgress();
+            const easedProgress = easeOutQuart(progress);
+
+            // Update CSS custom properties
+            root.style.setProperty('--reveal-progress', progress);
+            root.style.setProperty('--brightness', easedProgress);
+            root.style.setProperty('--clip-y', (easedProgress * 100) + '%');
+            root.style.setProperty('--glow-opacity', easedProgress);
+
+            // Update percentage display
+            percentageValue.textContent = Math.round(progress * 100);
+
+            // Update scroll indicator opacity
+            const indicatorOpacity = Math.max(0, 1 - progress * 5);
+            root.style.setProperty('--indicator-opacity', indicatorOpacity);
+
+            // Update scan line visibility
+            if (progress >= 0.99) {
+                root.style.setProperty('--scan-opacity', '0');
+            } else {
+                root.style.setProperty('--scan-opacity', '1');
+            }
+
+            // Update section labels
+            sectionLabels.forEach(label => {
+                const threshold = parseFloat(label.dataset.threshold);
+                if (progress >= threshold) {
+                    label.classList.add('active');
+                } else {
+                    label.classList.remove('active');
+                }
+            });
+
+            // Show completion message when fully revealed
+            if (progress >= 0.98) {
+                completionMessage.classList.add('visible');
+            } else {
+                completionMessage.classList.remove('visible');
+            }
+
+            // Trigger particle bursts at certain thresholds
+            triggerParticles(progress);
+        }
+
+        // Particle burst at thresholds
+        let lastParticleTrigger = -1;
+        function triggerParticles(progress) {
+            const thresholds = [0.25, 0.5, 0.75, 1.0];
+            const currentThreshold = thresholds.findIndex(t => progress >= t && lastParticleTrigger < thresholds.indexOf(t));
+
+            if (currentThreshold !== -1 && currentThreshold > lastParticleTrigger) {
+                lastParticleTrigger = currentThreshold;
+                createParticleBurst();
+            }
+        }
+
+        // Create a burst of particles
+        function createParticleBurst() {
+            for (let i = 0; i < 10; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = (40 + Math.random() * 20) + '%';
+                particle.style.top = (40 + Math.random() * 20) + '%';
+                particle.style.animation = 'particleFloat 1.5s ease-out forwards';
+
+                const colors = [
+                    'rgba(64, 224, 208, 0.8)',
+                    'rgba(147, 112, 219, 0.8)',
+                    'rgba(255, 255, 255, 0.8)'
+                ];
+                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                particle.style.width = (4 + Math.random() * 4) + 'px';
+                particle.style.height = particle.style.width;
+
+                particlesContainer.appendChild(particle);
+
+                // Remove particle after animation
+                setTimeout(() => particle.remove(), 1500);
+            }
+        }
+
+        // Throttle function for performance
+        function throttle(func, limit) {
+            let inThrottle;
+            return function(...args) {
+                if (!inThrottle) {
+                    func.apply(this, args);
+                    inThrottle = true;
+                    setTimeout(() => inThrottle = false, limit);
+                }
+            };
+        }
+
+        // Initialize
+        function init() {
+            createParticles();
+            updateReveal();
+
+            // Listen to scroll with throttling
+            window.addEventListener('scroll', throttle(updateReveal, 16), { passive: true });
+
+            // Also use requestAnimationFrame for smoother updates
+            let ticking = false;
+            window.addEventListener('scroll', () => {
+                if (!ticking) {
+                    requestAnimationFrame(() => {
+                        updateReveal();
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            }, { passive: true });
+        }
+
+        // Start when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>

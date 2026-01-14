@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULOCO - Sectional Zoom Exploration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #0a0a0f;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        .gallery-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .artwork-wrapper {
+            position: relative;
+            transform-origin: center center;
+            transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            will-change: transform;
+        }
+
+        .artwork-wrapper.zoomed {
+            transition: transform 1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .artwork {
+            display: block;
+            max-height: 90vh;
+            max-width: 90vw;
+            width: auto;
+            height: auto;
+            border-radius: 4px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .sections-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .section {
+            position: absolute;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            background: transparent;
+        }
+
+        .section::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 12px;
+            background: linear-gradient(135deg,
+                rgba(255, 255, 255, 0.1),
+                rgba(255, 255, 255, 0.05));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .section::after {
+            content: attr(data-label);
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            padding: 6px 14px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-radius: 20px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .section:hover {
+            transform: scale(1.03);
+            border-color: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.1),
+                        inset 0 0 20px rgba(255, 255, 255, 0.05);
+        }
+
+        .section:hover::before {
+            opacity: 1;
+        }
+
+        .section:hover::after {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .artwork-wrapper.zoomed .section {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Section positions - based on artwork dimensions */
+        .section[data-section="crown"] {
+            top: 0%;
+            left: 15%;
+            width: 70%;
+            height: 18%;
+        }
+
+        .section[data-section="upper-face"] {
+            top: 18%;
+            left: 10%;
+            width: 80%;
+            height: 20%;
+        }
+
+        .section[data-section="center"] {
+            top: 38%;
+            left: 5%;
+            width: 90%;
+            height: 20%;
+        }
+
+        .section[data-section="torso"] {
+            top: 58%;
+            left: 10%;
+            width: 80%;
+            height: 20%;
+        }
+
+        .section[data-section="base"] {
+            top: 78%;
+            left: 15%;
+            width: 70%;
+            height: 22%;
+        }
+
+        /* Close button */
+        .close-btn {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .close-btn::before,
+        .close-btn::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 2px;
+            background: #fff;
+            border-radius: 2px;
+            transition: background 0.3s ease;
+        }
+
+        .close-btn::before {
+            transform: rotate(45deg);
+        }
+
+        .close-btn::after {
+            transform: rotate(-45deg);
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: scale(1.1);
+        }
+
+        .close-btn.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Section info panel */
+        .info-panel {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 30px;
+            color: #fff;
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+
+        .info-panel.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Hint text */
+        .hint {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            transition: opacity 0.5s ease;
+        }
+
+        .hint.hidden {
+            opacity: 0;
+        }
+
+        /* Vignette effect */
+        .vignette {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(
+                ellipse at center,
+                transparent 40%,
+                rgba(0, 0, 0, 0.4) 100%
+            );
+            z-index: 10;
+        }
+
+        /* Loading state */
+        .artwork-wrapper {
+            opacity: 0;
+            animation: fadeIn 1s ease forwards;
+            animation-delay: 0.3s;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Keyboard hint */
+        .keyboard-hint {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 11px;
+            letter-spacing: 1px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .keyboard-hint.visible {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="vignette"></div>
+
+    <div class="gallery-container">
+        <div class="artwork-wrapper" id="artworkWrapper">
+            <img src="uloco.png" alt="ULOCO Artwork" class="artwork" id="artwork">
+
+            <div class="sections-overlay">
+                <div class="section"
+                     data-section="crown"
+                     data-label="The Crown"
+                     data-scale="2.8"
+                     data-y="-38%">
+                </div>
+                <div class="section"
+                     data-section="upper-face"
+                     data-label="The Guardian"
+                     data-scale="2.5"
+                     data-y="-22%">
+                </div>
+                <div class="section"
+                     data-section="center"
+                     data-label="The Lightning Bearer"
+                     data-scale="2.5"
+                     data-y="2%">
+                </div>
+                <div class="section"
+                     data-section="torso"
+                     data-label="The Vessel"
+                     data-scale="2.5"
+                     data-y="25%">
+                </div>
+                <div class="section"
+                     data-section="base"
+                     data-label="The Grinning Spirits"
+                     data-scale="2.8"
+                     data-y="40%">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="close-btn" id="closeBtn" aria-label="Close zoom view"></button>
+
+    <div class="info-panel" id="infoPanel"></div>
+
+    <div class="hint" id="hint">Hover and click to explore</div>
+
+    <div class="keyboard-hint" id="keyboardHint">Press ESC to close</div>
+
+    <script>
+        (function() {
+            // State
+            let isZoomed = false;
+            let currentSection = null;
+
+            // Elements
+            const wrapper = document.getElementById('artworkWrapper');
+            const closeBtn = document.getElementById('closeBtn');
+            const infoPanel = document.getElementById('infoPanel');
+            const hint = document.getElementById('hint');
+            const keyboardHint = document.getElementById('keyboardHint');
+            const sections = document.querySelectorAll('.section');
+
+            // Section descriptions
+            const sectionInfo = {
+                'crown': 'The Crown - Ancient symbols of power and wisdom converge at the apex',
+                'upper-face': 'The Guardian - A serene protector with the golden orb of enlightenment',
+                'center': 'The Lightning Bearer - Raw energy channeled through teal serenity',
+                'torso': 'The Vessel - Sacred geometry containing the essence of being',
+                'base': 'The Grinning Spirits - Mischievous guardians of the foundation'
+            };
+
+            // Zoom into a section
+            function zoomToSection(sectionEl) {
+                if (isZoomed) return;
+
+                const scale = parseFloat(sectionEl.dataset.scale) || 2.5;
+                const yOffset = sectionEl.dataset.y || '0%';
+                const sectionName = sectionEl.dataset.section;
+
+                wrapper.style.transform = `scale(${scale}) translateY(${yOffset})`;
+                wrapper.classList.add('zoomed');
+
+                isZoomed = true;
+                currentSection = sectionName;
+
+                // Show UI elements
+                closeBtn.classList.add('visible');
+                keyboardHint.classList.add('visible');
+                hint.classList.add('hidden');
+
+                // Show info panel
+                infoPanel.textContent = sectionInfo[sectionName] || sectionEl.dataset.label;
+                setTimeout(() => {
+                    infoPanel.classList.add('visible');
+                }, 300);
+            }
+
+            // Reset zoom
+            function resetZoom() {
+                if (!isZoomed) return;
+
+                wrapper.style.transform = 'scale(1) translateY(0)';
+                wrapper.classList.remove('zoomed');
+
+                isZoomed = false;
+                currentSection = null;
+
+                // Hide UI elements
+                closeBtn.classList.remove('visible');
+                keyboardHint.classList.remove('visible');
+                infoPanel.classList.remove('visible');
+
+                setTimeout(() => {
+                    hint.classList.remove('hidden');
+                }, 500);
+            }
+
+            // Event listeners for sections
+            sections.forEach(section => {
+                section.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    zoomToSection(section);
+                });
+            });
+
+            // Close button
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                resetZoom();
+            });
+
+            // Keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && isZoomed) {
+                    resetZoom();
+                }
+            });
+
+            // Click outside to close (on the wrapper when zoomed)
+            wrapper.addEventListener('click', (e) => {
+                if (isZoomed && e.target === wrapper) {
+                    resetZoom();
+                }
+            });
+
+            // Prevent context menu on artwork for cleaner UX
+            document.querySelector('.artwork').addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+            });
+
+            // Touch support for mobile
+            let touchStartY = 0;
+            wrapper.addEventListener('touchstart', (e) => {
+                touchStartY = e.touches[0].clientY;
+            }, { passive: true });
+
+            wrapper.addEventListener('touchend', (e) => {
+                if (isZoomed) {
+                    const touchEndY = e.changedTouches[0].clientY;
+                    // Swipe down to close
+                    if (touchEndY - touchStartY > 100) {
+                        resetZoom();
+                    }
+                }
+            }, { passive: true });
+
+        })();
+    </script>
+</body>
+</html>
