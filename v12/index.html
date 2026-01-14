@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULOCO</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #f5f0e6;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Particle canvas */
+        #particle-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Main container */
+        .container {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Bubbles container */
+        .bubbles-container {
+            position: relative;
+            width: 500px;
+            height: 500px;
+        }
+
+        /* Individual bubble */
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        }
+
+        .bubble:hover {
+            transform: scale(1.08);
+        }
+
+        .bubble-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .bubble-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
+
+        .bubble-label {
+            position: relative;
+            z-index: 2;
+            color: white;
+            font-size: 1.3rem;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Avatar bubble - center */
+        .bubble-avatar {
+            width: 120px;
+            height: 120px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            border: 4px solid #f5f0e6;
+        }
+
+        .bubble-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Books bubble */
+        .bubble-books {
+            width: 140px;
+            height: 140px;
+            top: 15%;
+            left: 15%;
+        }
+
+        .bubble-books .bubble-bg {
+            background: #3d3d4d;
+            background-image:
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 12px,
+                    rgba(255,255,255,0.05) 12px,
+                    rgba(255,255,255,0.05) 14px
+                ),
+                repeating-linear-gradient(
+                    90deg,
+                    #4a4a5a 0px,
+                    #4a4a5a 8px,
+                    #3d3d4d 8px,
+                    #3d3d4d 10px
+                );
+        }
+
+        /* Bits bubble */
+        .bubble-bits {
+            width: 130px;
+            height: 130px;
+            top: 8%;
+            right: 20%;
+        }
+
+        .bubble-bits .bubble-bg {
+            background: #1a2a1a;
+            overflow: hidden;
+        }
+
+        .bubble-bits .binary-text {
+            position: absolute;
+            font-family: monospace;
+            font-size: 10px;
+            color: #4ade80;
+            opacity: 0.7;
+            line-height: 1.2;
+            text-align: center;
+            padding: 10px;
+        }
+
+        /* Arts bubble */
+        .bubble-arts {
+            width: 120px;
+            height: 120px;
+            top: 45%;
+            right: 8%;
+        }
+
+        .bubble-arts .bubble-bg {
+            background: #1a1a2e;
+        }
+
+        .bubble-arts .art-circles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .art-circle {
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .art-circle-1 { width: 50px; height: 50px; background: #a855f7; top: 15%; left: 10%; }
+        .art-circle-2 { width: 35px; height: 35px; background: #22c55e; bottom: 20%; right: 15%; }
+        .art-circle-3 { width: 20px; height: 20px; background: #ef4444; bottom: 35%; left: 25%; }
+        .art-circle-4 { width: 15px; height: 15px; background: #3b82f6; top: 40%; right: 30%; }
+
+        /* Thoughts bubble */
+        .bubble-thoughts {
+            width: 135px;
+            height: 135px;
+            bottom: 18%;
+            left: 10%;
+        }
+
+        .bubble-thoughts .bubble-bg {
+            background: #1a1a2e;
+        }
+
+        .thought-cloud {
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .thought-cloud-1 { width: 30px; height: 25px; background: #818cf8; top: 30%; left: 20%; border-radius: 40%; }
+        .thought-cloud-2 { width: 25px; height: 20px; background: #f472b6; top: 25%; left: 40%; border-radius: 40%; }
+        .thought-cloud-3 { width: 20px; height: 18px; background: #fbbf24; top: 40%; left: 50%; border-radius: 40%; }
+        .thought-cloud-4 { width: 15px; height: 12px; background: #34d399; top: 50%; left: 35%; border-radius: 40%; }
+
+        /* Sounds bubble */
+        .bubble-sounds {
+            width: 125px;
+            height: 125px;
+            bottom: 10%;
+            left: 45%;
+        }
+
+        .bubble-sounds .bubble-bg {
+            background: #1a1a2e;
+        }
+
+        .sound-wave {
+            position: absolute;
+            width: 80%;
+            height: 2px;
+            left: 10%;
+            border-radius: 2px;
+        }
+
+        .sound-wave-1 { top: 35%; background: linear-gradient(90deg, transparent, #06b6d4, transparent); }
+        .sound-wave-2 { top: 50%; background: linear-gradient(90deg, transparent, #f472b6, transparent); }
+        .sound-wave-3 { top: 65%; background: linear-gradient(90deg, transparent, #a78bfa, transparent); }
+
+        /* Text display area */
+        #text-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        #text-display canvas {
+            display: block;
+        }
+
+        /* Back button */
+        .back-button {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            z-index: 1000;
+            background: #1a1a2e;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .back-button:hover {
+            transform: scale(1.05);
+        }
+
+        .back-button.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particle-canvas"></canvas>
+
+    <button class="back-button" id="back-button">Back</button>
+
+    <div class="container">
+        <div class="bubbles-container" id="bubbles-container">
+            <!-- Avatar (center) -->
+            <div class="bubble bubble-avatar" data-label="">
+                <div class="bubble-content">
+                    <svg viewBox="0 0 120 120" width="100%" height="100%">
+                        <defs>
+                            <linearGradient id="avatarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#f97316"/>
+                                <stop offset="50%" style="stop-color:#ec4899"/>
+                                <stop offset="100%" style="stop-color:#8b5cf6"/>
+                            </linearGradient>
+                        </defs>
+                        <circle cx="60" cy="45" r="25" fill="url(#avatarGradient)"/>
+                        <ellipse cx="60" cy="95" rx="35" ry="25" fill="url(#avatarGradient)"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Books -->
+            <div class="bubble bubble-books" data-label="Books">
+                <div class="bubble-content">
+                    <div class="bubble-bg"></div>
+                    <span class="bubble-label">Books</span>
+                </div>
+            </div>
+
+            <!-- Bits -->
+            <div class="bubble bubble-bits" data-label="Bits">
+                <div class="bubble-content">
+                    <div class="bubble-bg">
+                        <div class="binary-text">101011<br>010110<br>101011<br>110010<br>011010<br>101100</div>
+                    </div>
+                    <span class="bubble-label">Bits</span>
+                </div>
+            </div>
+
+            <!-- Arts -->
+            <div class="bubble bubble-arts" data-label="Arts">
+                <div class="bubble-content">
+                    <div class="bubble-bg">
+                        <div class="art-circles">
+                            <div class="art-circle art-circle-1"></div>
+                            <div class="art-circle art-circle-2"></div>
+                            <div class="art-circle art-circle-3"></div>
+                            <div class="art-circle art-circle-4"></div>
+                        </div>
+                    </div>
+                    <span class="bubble-label">Arts</span>
+                </div>
+            </div>
+
+            <!-- Thoughts -->
+            <div class="bubble bubble-thoughts" data-label="Thoughts">
+                <div class="bubble-content">
+                    <div class="bubble-bg">
+                        <div class="thought-cloud thought-cloud-1"></div>
+                        <div class="thought-cloud thought-cloud-2"></div>
+                        <div class="thought-cloud thought-cloud-3"></div>
+                        <div class="thought-cloud thought-cloud-4"></div>
+                    </div>
+                    <span class="bubble-label">Thoughts</span>
+                </div>
+            </div>
+
+            <!-- Sounds -->
+            <div class="bubble bubble-sounds" data-label="Sounds">
+                <div class="bubble-content">
+                    <div class="bubble-bg">
+                        <div class="sound-wave sound-wave-1"></div>
+                        <div class="sound-wave sound-wave-2"></div>
+                        <div class="sound-wave sound-wave-3"></div>
+                    </div>
+                    <span class="bubble-label">Sounds</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="text-display">
+        <canvas id="text-canvas"></canvas>
+    </div>
+
+    <script>
+        // Particle System Configuration
+        const PARTICLE_COUNT = 2400;
+        const PARTICLE_COLORS = ['#4a5568', '#2d3748', '#1a202c', '#718096', '#a0aec0'];
+
+        // State
+        let particles = [];
+        let isAnimating = false;
+        let currentWord = '';
+        let textParticlePositions = [];
+
+        // Canvas setup
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Text canvas for generating letter positions
+        const textCanvas = document.getElementById('text-canvas');
+        const textCtx = textCanvas.getContext('2d');
+
+        // Particle class
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.originX = this.x;
+                this.originY = this.y;
+                this.size = Math.random() * 2.5 + 1;
+                this.baseSize = this.size;
+                this.color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.targetX = null;
+                this.targetY = null;
+            }
+
+            update() {
+                if (!isAnimating) {
+                    // Floating animation
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    // Bounce off edges with some padding
+                    if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                    if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+
+                    // Keep within bounds
+                    this.x = Math.max(0, Math.min(canvas.width, this.x));
+                    this.y = Math.max(0, Math.min(canvas.height, this.y));
+
+                    // Gentle random movement variation
+                    if (Math.random() < 0.01) {
+                        this.vx += (Math.random() - 0.5) * 0.2;
+                        this.vy += (Math.random() - 0.5) * 0.2;
+                        // Limit speed
+                        this.vx = Math.max(-0.8, Math.min(0.8, this.vx));
+                        this.vy = Math.max(-0.8, Math.min(0.8, this.vy));
+                    }
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+        }
+
+        // Initialize particles
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        // Animation loop
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // Get text particle positions
+        function getTextPositions(text) {
+            const fontSize = Math.min(canvas.width / (text.length * 0.8), 200);
+            textCanvas.width = canvas.width;
+            textCanvas.height = canvas.height;
+
+            textCtx.fillStyle = '#000';
+            textCtx.font = `bold ${fontSize}px 'Space Grotesk', sans-serif`;
+            textCtx.textAlign = 'center';
+            textCtx.textBaseline = 'middle';
+            textCtx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+            const imageData = textCtx.getImageData(0, 0, canvas.width, canvas.height);
+            const positions = [];
+            const gap = 4; // Sampling gap
+
+            for (let y = 0; y < canvas.height; y += gap) {
+                for (let x = 0; x < canvas.width; x += gap) {
+                    const index = (y * canvas.width + x) * 4;
+                    if (imageData.data[index + 3] > 128) {
+                        positions.push({ x, y });
+                    }
+                }
+            }
+
+            return positions;
+        }
+
+        // Animate particles to form text
+        function animateToText(word) {
+            if (isAnimating) return;
+            isAnimating = true;
+            currentWord = word;
+
+            const positions = getTextPositions(word);
+
+            // Assign positions to particles
+            particles.forEach((particle, i) => {
+                if (i < positions.length) {
+                    particle.targetX = positions[i].x;
+                    particle.targetY = positions[i].y;
+                } else {
+                    // Extra particles go to random positions around the text
+                    particle.targetX = canvas.width / 2 + (Math.random() - 0.5) * 400;
+                    particle.targetY = canvas.height / 2 + (Math.random() - 0.5) * 200;
+                }
+            });
+
+            // GSAP animation for each particle
+            particles.forEach((particle, i) => {
+                const delay = Math.random() * 0.3;
+                gsap.to(particle, {
+                    x: particle.targetX,
+                    y: particle.targetY,
+                    size: i < positions.length ? particle.baseSize * 1.2 : particle.baseSize * 0.5,
+                    duration: 1.2,
+                    delay: delay,
+                    ease: 'power3.out'
+                });
+            });
+        }
+
+        // Animate particles back to floating
+        function animateBack() {
+            if (!isAnimating) return;
+
+            particles.forEach(particle => {
+                const newX = Math.random() * canvas.width;
+                const newY = Math.random() * canvas.height;
+
+                gsap.to(particle, {
+                    x: newX,
+                    y: newY,
+                    size: particle.baseSize,
+                    duration: 1,
+                    ease: 'power2.inOut',
+                    onComplete: () => {
+                        particle.originX = newX;
+                        particle.originY = newY;
+                    }
+                });
+            });
+
+            setTimeout(() => {
+                isAnimating = false;
+                currentWord = '';
+            }, 1000);
+        }
+
+        // Handle bubble clicks
+        function setupBubbleInteractions() {
+            const bubbles = document.querySelectorAll('.bubble');
+            const bubblesContainer = document.getElementById('bubbles-container');
+            const backButton = document.getElementById('back-button');
+
+            bubbles.forEach(bubble => {
+                bubble.addEventListener('click', () => {
+                    const label = bubble.dataset.label;
+                    if (!label || isAnimating) return;
+
+                    // Animate bubbles out
+                    gsap.to(bubblesContainer, {
+                        opacity: 0,
+                        scale: 0.8,
+                        duration: 0.5,
+                        ease: 'power2.in'
+                    });
+
+                    // Show back button
+                    setTimeout(() => {
+                        backButton.classList.add('visible');
+                    }, 300);
+
+                    // Animate particles to form text
+                    setTimeout(() => {
+                        animateToText(label);
+                    }, 200);
+                });
+            });
+
+            // Back button handler
+            backButton.addEventListener('click', () => {
+                backButton.classList.remove('visible');
+
+                // Animate particles back
+                animateBack();
+
+                // Bring bubbles back
+                setTimeout(() => {
+                    gsap.to(bubblesContainer, {
+                        opacity: 1,
+                        scale: 1,
+                        duration: 0.6,
+                        ease: 'power2.out'
+                    });
+                }, 500);
+            });
+        }
+
+        // Initial bubble animations
+        function animateBubblesIn() {
+            const bubbles = document.querySelectorAll('.bubble');
+
+            bubbles.forEach((bubble, index) => {
+                gsap.fromTo(bubble,
+                    {
+                        opacity: 0,
+                        scale: 0,
+                    },
+                    {
+                        opacity: 1,
+                        scale: 1,
+                        duration: 0.8,
+                        delay: index * 0.1,
+                        ease: 'back.out(1.7)'
+                    }
+                );
+            });
+        }
+
+        // Subtle bubble floating animation
+        function animateBubblesFloat() {
+            const bubbles = document.querySelectorAll('.bubble');
+
+            bubbles.forEach((bubble, index) => {
+                gsap.to(bubble, {
+                    y: `+=${5 + Math.random() * 10}`,
+                    duration: 2 + Math.random() * 2,
+                    repeat: -1,
+                    yoyo: true,
+                    ease: 'sine.inOut',
+                    delay: index * 0.2
+                });
+            });
+        }
+
+        // Initialize
+        initParticles();
+        animate();
+        setupBubbleInteractions();
+
+        // Delay initial animations slightly
+        setTimeout(() => {
+            animateBubblesIn();
+            setTimeout(animateBubblesFloat, 1000);
+        }, 300);
+    </script>
+</body>
+</html>
