@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ULOCO</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
@@ -12,6 +15,25 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        :root {
+            /* Bluloco Dark Theme Colors */
+            --bg: #282c34;
+            --bg-lighter: #2c313a;
+            --bg-darker: #21252b;
+            --fg: #abb2bf;
+            --comment: #636d83;
+            --keyword: #10b1fe;
+            --function: #3fc56b;
+            --property: #ce9887;
+            --string: #f9c859;
+            --number: #ff78f8;
+            --constant: #9f7efe;
+            --tag: #3691ff;
+            --attribute: #ff936a;
+            --class: #ff6480;
+            --operator: #7a82da;
         }
 
         body {
@@ -333,6 +355,380 @@
         .content-list li a:hover {
             color: #1a202c;
         }
+
+        /* Terminal Overlay for Bits */
+        .terminal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-darker);
+            z-index: 500;
+            opacity: 0;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            transition: opacity 0.5s ease;
+        }
+
+        .terminal-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* Scanline effect */
+        .terminal-overlay::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 0, 0, 0.03) 2px,
+                rgba(0, 0, 0, 0.03) 4px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* CRT glow effect */
+        .terminal-overlay::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(
+                ellipse at center,
+                transparent 0%,
+                rgba(0, 0, 0, 0.3) 100%
+            );
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* Terminal window */
+        .terminal {
+            width: 100%;
+            max-width: 900px;
+            background: var(--bg);
+            border-radius: 12px;
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                0 0 100px rgba(16, 177, 254, 0.1);
+            overflow: hidden;
+            position: relative;
+            opacity: 0;
+            transform: translateY(30px) scale(0.95);
+        }
+
+        .terminal.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        /* Terminal header */
+        .terminal-header {
+            background: var(--bg-darker);
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .terminal-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+
+        .terminal-btn:hover {
+            filter: brightness(1.3);
+        }
+
+        .btn-close { background: var(--class); }
+        .btn-minimize { background: var(--string); }
+        .btn-maximize { background: var(--function); }
+
+        .terminal-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--comment);
+            margin-right: 52px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Terminal body */
+        .terminal-body {
+            padding: 1.5rem;
+            min-height: 400px;
+            position: relative;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--fg);
+        }
+
+        .line {
+            margin-bottom: 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            opacity: 0;
+        }
+
+        .prompt {
+            color: var(--function);
+            margin-right: 0.5rem;
+        }
+
+        .prompt::before {
+            content: '>';
+            margin-right: 0.5rem;
+            color: var(--keyword);
+        }
+
+        .command {
+            color: var(--fg);
+        }
+
+        /* Syntax highlighting classes */
+        .keyword { color: var(--keyword); }
+        .function { color: var(--function); }
+        .string { color: var(--string); }
+        .number { color: var(--number); }
+        .constant { color: var(--constant); }
+        .class { color: var(--class); }
+        .operator { color: var(--operator); }
+        .property { color: var(--property); }
+        .comment { color: var(--comment); }
+        .attribute { color: var(--attribute); }
+        .tag { color: var(--tag); }
+
+        /* Blinking cursor */
+        .cursor {
+            display: inline-block;
+            width: 0.6rem;
+            height: 1.2rem;
+            background: var(--keyword);
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        /* Neofetch style info */
+        .neofetch {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 2rem;
+            align-items: start;
+            margin: 1rem 0;
+            opacity: 0;
+        }
+
+        .neofetch-logo {
+            font-size: 0.5rem;
+            line-height: 1.1;
+            color: var(--keyword);
+            white-space: pre;
+        }
+
+        .neofetch-info {
+            font-size: 0.8rem;
+        }
+
+        .neofetch-info .info-line {
+            margin-bottom: 0.3rem;
+        }
+
+        .info-label {
+            color: var(--keyword);
+            font-weight: 700;
+        }
+
+        .color-blocks {
+            display: flex;
+            gap: 0;
+            margin-top: 1rem;
+        }
+
+        .color-block {
+            width: 2rem;
+            height: 1rem;
+        }
+
+        /* Stats grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+            opacity: 0;
+        }
+
+        .stat-box {
+            background: var(--bg-darker);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+        }
+
+        .stat-box:nth-child(1)::before { background: var(--keyword); }
+        .stat-box:nth-child(2)::before { background: var(--function); }
+        .stat-box:nth-child(3)::before { background: var(--string); }
+        .stat-box:nth-child(4)::before { background: var(--number); }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--comment);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .stat-box:nth-child(1) .stat-value { color: var(--keyword); }
+        .stat-box:nth-child(2) .stat-value { color: var(--function); }
+        .stat-box:nth-child(3) .stat-value { color: var(--string); }
+        .stat-box:nth-child(4) .stat-value { color: var(--number); }
+
+        /* Links section */
+        .links-section {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+            opacity: 0;
+        }
+
+        .terminal-link {
+            color: var(--keyword);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--keyword);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .terminal-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--keyword);
+            transition: left 0.3s ease;
+            z-index: -1;
+        }
+
+        .terminal-link:hover {
+            color: var(--bg);
+        }
+
+        .terminal-link:hover::before {
+            left: 0;
+        }
+
+        /* Progress bars */
+        .progress-container {
+            margin: 0.75rem 0;
+            opacity: 0;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: var(--bg-darker);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0;
+            border-radius: 3px;
+        }
+
+        .progress-1 .progress-fill { background: linear-gradient(90deg, var(--keyword), var(--constant)); }
+        .progress-2 .progress-fill { background: linear-gradient(90deg, var(--function), var(--string)); }
+        .progress-3 .progress-fill { background: linear-gradient(90deg, var(--class), var(--number)); }
+
+        /* Bits title in terminal */
+        .bits-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--keyword);
+            text-align: center;
+            margin-bottom: 1rem;
+            opacity: 0;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Terminal footer */
+        .terminal-footer {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.75rem;
+            opacity: 0;
+        }
+
+        @media (max-width: 768px) {
+            .neofetch {
+                grid-template-columns: 1fr;
+            }
+            .neofetch-logo {
+                font-size: 0.35rem;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -465,10 +861,149 @@
         </ul>
     </div>
 
+    <!-- Terminal Overlay for Bits -->
+    <div class="terminal-overlay" id="terminal-overlay">
+        <div class="terminal" id="bits-terminal">
+            <div class="terminal-header">
+                <div class="terminal-btn btn-close"></div>
+                <div class="terminal-btn btn-minimize"></div>
+                <div class="terminal-btn btn-maximize"></div>
+                <div class="terminal-title">uloco@dev ~ bits</div>
+            </div>
+            <div class="terminal-body">
+                <!-- Neofetch command -->
+                <div class="line" id="term-line-1">
+                    <span class="prompt">~</span>
+                    <span class="command">whoami --dev</span>
+                </div>
+
+                <!-- Neofetch display -->
+                <div class="neofetch" id="term-neofetch">
+                    <div class="neofetch-logo">
+    ██╗   ██╗██╗      ██████╗  ██████╗ ██████╗
+    ██║   ██║██║     ██╔═══██╗██╔════╝██╔═══██╗
+    ██║   ██║██║     ██║   ██║██║     ██║   ██║
+    ██║   ██║██║     ██║   ██║██║     ██║   ██║
+    ╚██████╔╝███████╗╚██████╔╝╚██████╗╚██████╔╝
+     ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝
+                    </div>
+                    <div class="neofetch-info">
+                        <div class="info-line"><span class="info-label">Developer:</span> <span class="string">Umut Topuzoğlu</span></div>
+                        <div class="info-line"><span class="info-label">Handle:</span> <span class="function">@uloco</span></div>
+                        <div class="info-line"><span class="info-label">Focus:</span> <span class="fg">Developer Experience</span></div>
+                        <div class="info-line"><span class="info-label">Theme:</span> <span class="keyword">Bluloco</span> <span class="class">[Dark/Light]</span></div>
+                        <div class="info-line"><span class="info-label">Editor:</span> <span class="constant">VS Code / JetBrains</span></div>
+                        <div class="info-line"><span class="info-label">Terminal:</span> <span class="fg">iTerm2 + zsh</span></div>
+                        <div class="info-line"><span class="info-label">Status:</span> <span class="function">Building cool stuff</span></div>
+                        <div class="color-blocks">
+                            <div class="color-block" style="background: var(--keyword);"></div>
+                            <div class="color-block" style="background: var(--function);"></div>
+                            <div class="color-block" style="background: var(--string);"></div>
+                            <div class="color-block" style="background: var(--number);"></div>
+                            <div class="color-block" style="background: var(--constant);"></div>
+                            <div class="color-block" style="background: var(--class);"></div>
+                            <div class="color-block" style="background: var(--operator);"></div>
+                            <div class="color-block" style="background: var(--attribute);"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats command -->
+                <div class="line" id="term-line-2">
+                    <span class="prompt">~</span>
+                    <span class="command">cat ./bluloco-stats.json</span>
+                </div>
+
+                <div class="stats-grid" id="term-stats">
+                    <div class="stat-box">
+                        <div class="stat-label">Downloads</div>
+                        <div class="stat-value" data-value="500000">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">GitHub Stars</div>
+                        <div class="stat-value" data-value="1200">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Color Scopes</div>
+                        <div class="stat-value" data-value="100">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Happy Devs</div>
+                        <div class="stat-value" data-value="99">0</div>
+                        <span class="number">%</span>
+                    </div>
+                </div>
+
+                <!-- Skills -->
+                <div class="line" id="term-line-3">
+                    <span class="prompt">~</span>
+                    <span class="command">skills --top</span>
+                </div>
+
+                <div class="progress-container progress-1" id="term-progress-1">
+                    <div class="progress-label">
+                        <span class="keyword">TypeScript</span>
+                        <span class="number">95%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <div class="progress-container progress-2" id="term-progress-2">
+                    <div class="progress-label">
+                        <span class="function">React / Vue</span>
+                        <span class="number">90%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <div class="progress-container progress-3" id="term-progress-3">
+                    <div class="progress-label">
+                        <span class="class">Theme Crafting</span>
+                        <span class="number">100%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <!-- Links -->
+                <div class="line" id="term-line-4">
+                    <span class="prompt">~</span>
+                    <span class="command">open ./links</span>
+                </div>
+
+                <div class="links-section" id="term-links">
+                    <a href="https://github.com/uloco" class="terminal-link" target="_blank">
+                        <span class="keyword">></span> GitHub
+                    </a>
+                    <a href="https://github.com/uloco/theme-bluloco-dark" class="terminal-link" target="_blank">
+                        <span class="keyword">></span> Bluloco Dark
+                    </a>
+                    <a href="https://marketplace.visualstudio.com/items?itemName=uloco.theme-bluloco-dark" class="terminal-link" target="_blank">
+                        <span class="keyword">></span> VS Code
+                    </a>
+                </div>
+
+                <!-- Footer -->
+                <div class="terminal-footer" id="term-footer">
+                    <span class="comment">// crafted with <span class="class">love</span></span>
+                    <span class="comment">// theme: <span class="keyword">bluloco-dark</span></span>
+                    <span class="comment">// <span class="function">MIT</span> licensed</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Particle System Configuration
         const PARTICLE_COUNT = 3500;
         const PARTICLE_COLORS = ['#4a5568', '#2d3748', '#1a202c', '#718096', '#a0aec0'];
+        // Bluloco theme colors for terminal transition
+        const BLULOCO_COLORS = ['#10b1fe', '#3fc56b', '#f9c859', '#ff78f8', '#9f7efe', '#ff6480'];
 
         // State
         let particles = [];
@@ -750,6 +1285,244 @@
             });
         }
 
+        // Terminal state
+        let terminalActive = false;
+
+        // Animate to Bits terminal
+        function animateToBitsTerminal() {
+            if (isAnimating) return;
+            isAnimating = true;
+            terminalActive = true;
+            currentWord = 'Bits';
+
+            // First, animate particles to form "Bits" text
+            const positions = getTextPositions('Bits');
+
+            // Assign positions to particles
+            particles.forEach((particle, i) => {
+                if (i < positions.length) {
+                    particle.targetX = positions[i].x;
+                    particle.targetY = positions[i].y;
+                } else {
+                    particle.targetX = canvas.width / 2 + (Math.random() - 0.5) * 400;
+                    particle.targetY = canvas.height / 2 + (Math.random() - 0.5) * 200;
+                }
+            });
+
+            // GSAP animation for particles to form text
+            particles.forEach((particle, i) => {
+                const delay = Math.random() * 0.3;
+                gsap.to(particle, {
+                    x: particle.targetX,
+                    y: particle.targetY,
+                    size: i < positions.length ? particle.baseSize * 1.2 : particle.baseSize * 0.5,
+                    duration: 1.2,
+                    delay: delay,
+                    ease: 'power3.out'
+                });
+            });
+
+            // After text forms, move up and transition to terminal
+            setTimeout(() => {
+                textFormed = true;
+
+                // Move particles up to the top
+                const upwardShift = canvas.height * 0.35;
+                particles.forEach((particle) => {
+                    if (particle.targetY !== null) {
+                        const newTarget = particle.targetY - upwardShift;
+                        gsap.to(particle, {
+                            y: newTarget,
+                            duration: 1.5,
+                            ease: 'power2.out',
+                            onStart: () => {
+                                particle.targetY = newTarget;
+                            }
+                        });
+                    }
+                });
+
+                // Start changing particle colors to Bluloco theme
+                setTimeout(() => {
+                    particles.forEach((particle, i) => {
+                        gsap.to(particle, {
+                            duration: 0.8,
+                            delay: Math.random() * 0.5,
+                            onUpdate: function() {
+                                particle.color = BLULOCO_COLORS[Math.floor(Math.random() * BLULOCO_COLORS.length)];
+                            }
+                        });
+                    });
+                }, 500);
+
+                // Fade background to dark
+                setTimeout(() => {
+                    gsap.to('body', {
+                        backgroundColor: '#21252b',
+                        duration: 1.5,
+                        ease: 'power2.inOut'
+                    });
+                }, 800);
+
+                // Show terminal overlay
+                setTimeout(() => {
+                    const terminalOverlay = document.getElementById('terminal-overlay');
+                    terminalOverlay.classList.add('visible');
+
+                    // Animate terminal window in
+                    setTimeout(() => {
+                        const terminal = document.getElementById('bits-terminal');
+                        gsap.to(terminal, {
+                            opacity: 1,
+                            y: 0,
+                            scale: 1,
+                            duration: 0.6,
+                            ease: 'power2.out',
+                            onComplete: () => {
+                                animateTerminalContent();
+                            }
+                        });
+                    }, 200);
+                }, 1200);
+
+            }, 1500);
+        }
+
+        // Animate terminal content sequentially
+        function animateTerminalContent() {
+            const tl = gsap.timeline({ defaults: { ease: 'power2.out' } });
+
+            // Line 1 - whoami
+            tl.to('#term-line-1', { opacity: 1, duration: 0.3 });
+
+            // Neofetch
+            tl.to('#term-neofetch', { opacity: 1, duration: 0.5 }, '+=0.2');
+
+            // Line 2 - stats
+            tl.to('#term-line-2', { opacity: 1, duration: 0.3 }, '+=0.3');
+
+            // Stats grid
+            tl.to('#term-stats', { opacity: 1, duration: 0.5 }, '+=0.1');
+
+            // Animate stat counters
+            tl.add(() => {
+                document.querySelectorAll('#term-stats .stat-value[data-value]').forEach(stat => {
+                    const target = parseInt(stat.dataset.value);
+                    gsap.to(stat, {
+                        textContent: target,
+                        duration: 1.5,
+                        snap: { textContent: 1 },
+                        ease: 'power2.out',
+                        modifiers: {
+                            textContent: value => {
+                                const num = Math.round(parseFloat(value));
+                                return num >= 1000 ? (num / 1000).toFixed(0) + 'K+' : num;
+                            }
+                        }
+                    });
+                });
+            }, '-=0.3');
+
+            // Line 3 - skills
+            tl.to('#term-line-3', { opacity: 1, duration: 0.3 }, '+=0.5');
+
+            // Progress bars
+            tl.to('#term-progress-1', { opacity: 1, duration: 0.3 }, '+=0.1');
+            tl.to('#term-progress-1 .progress-fill', { width: '95%', duration: 0.8 }, '-=0.1');
+
+            tl.to('#term-progress-2', { opacity: 1, duration: 0.3 }, '-=0.4');
+            tl.to('#term-progress-2 .progress-fill', { width: '90%', duration: 0.8 }, '-=0.1');
+
+            tl.to('#term-progress-3', { opacity: 1, duration: 0.3 }, '-=0.4');
+            tl.to('#term-progress-3 .progress-fill', { width: '100%', duration: 0.8 }, '-=0.1');
+
+            // Line 4 - links
+            tl.to('#term-line-4', { opacity: 1, duration: 0.3 }, '+=0.2');
+
+            // Links section
+            tl.to('#term-links', { opacity: 1, duration: 0.5 }, '+=0.1');
+
+            // Footer
+            tl.to('#term-footer', { opacity: 1, duration: 0.5 }, '+=0.2');
+
+            // Animate color blocks
+            tl.add(() => {
+                gsap.to('.color-block', {
+                    scale: 1.1,
+                    duration: 0.5,
+                    stagger: {
+                        each: 0.1,
+                        repeat: -1,
+                        yoyo: true,
+                    },
+                    ease: 'power1.inOut',
+                });
+            }, '-=0.5');
+        }
+
+        // Go back from terminal
+        function animateBackFromTerminal() {
+            terminalActive = false;
+            textFormed = false;
+
+            // Hide terminal
+            const terminalOverlay = document.getElementById('terminal-overlay');
+            const terminal = document.getElementById('bits-terminal');
+
+            gsap.to(terminal, {
+                opacity: 0,
+                y: 30,
+                scale: 0.95,
+                duration: 0.4,
+                ease: 'power2.in'
+            });
+
+            setTimeout(() => {
+                terminalOverlay.classList.remove('visible');
+
+                // Reset terminal elements for next time
+                gsap.set(['#term-line-1', '#term-line-2', '#term-line-3', '#term-line-4'], { opacity: 0 });
+                gsap.set(['#term-neofetch', '#term-stats', '#term-links', '#term-footer'], { opacity: 0 });
+                gsap.set(['#term-progress-1', '#term-progress-2', '#term-progress-3'], { opacity: 0 });
+                gsap.set(['#term-progress-1 .progress-fill', '#term-progress-2 .progress-fill', '#term-progress-3 .progress-fill'], { width: 0 });
+                document.querySelectorAll('#term-stats .stat-value').forEach(el => el.textContent = '0');
+                gsap.set(terminal, { opacity: 0, y: 30, scale: 0.95 });
+            }, 400);
+
+            // Restore background color
+            gsap.to('body', {
+                backgroundColor: '#f5f0e6',
+                duration: 1,
+                ease: 'power2.inOut'
+            });
+
+            // Restore particle colors and scatter them
+            particles.forEach(particle => {
+                particle.color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
+                const newX = Math.random() * canvas.width;
+                const newY = Math.random() * canvas.height;
+
+                gsap.to(particle, {
+                    x: newX,
+                    y: newY,
+                    size: particle.baseSize,
+                    duration: 1,
+                    ease: 'power2.inOut',
+                    onComplete: () => {
+                        particle.originX = newX;
+                        particle.originY = newY;
+                        particle.targetX = null;
+                        particle.targetY = null;
+                    }
+                });
+            });
+
+            setTimeout(() => {
+                isAnimating = false;
+                currentWord = '';
+            }, 1000);
+        }
+
         // Animate particles back to floating
         function animateBack() {
             if (!isAnimating) return;
@@ -803,10 +1576,17 @@
                         backButton.classList.add('visible');
                     }, 300);
 
-                    // Animate particles to form text
-                    setTimeout(() => {
-                        animateToText(label);
-                    }, 200);
+                    // Special handling for Bits - terminal transition
+                    if (label === 'Bits') {
+                        setTimeout(() => {
+                            animateToBitsTerminal();
+                        }, 200);
+                    } else {
+                        // Regular animation for other bubbles
+                        setTimeout(() => {
+                            animateToText(label);
+                        }, 200);
+                    }
                 });
             });
 
@@ -814,8 +1594,13 @@
             backButton.addEventListener('click', () => {
                 backButton.classList.remove('visible');
 
-                // Animate particles back
-                animateBack();
+                // Check if we're coming back from terminal
+                if (terminalActive) {
+                    animateBackFromTerminal();
+                } else {
+                    // Regular animate back
+                    animateBack();
+                }
 
                 // Bring bubbles back
                 setTimeout(() => {
